@@ -2,6 +2,8 @@
 
 A command-line tool to play with color gradient.
 
+![gradient-cli-tool](docs/images/gradient-cli-1.png)
+
 ## Installing
 
 ```
