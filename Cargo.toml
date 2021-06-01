@@ -1,0 +1,25 @@
+[package]
+name = "gradient"
+version = "0.1.0"
+authors = ["Nor Khasyatillah <mazznoer@ymail.com>"]
+edition = "2018"
+description = "A command-line to play with color gradient"
+keywords = ["color", "gradient", "colormap", "color-scales", "color-scheme"]
+categories = ["command-line-utilities", "graphics"]
+readme = "README.md"
+repository = "https://github.com/mazznoer/gradient-rs"
+license = "MIT OR Apache-2.0"
+exclude = [
+	".github/*",
+	".gitignore",
+	"docs/*",
+	"tests/*",
+]
+
+[dependencies]
+clap = { version = "3.0.0-beta.2" }
+colored = "2.0.0"
+colorgrad = { version = "0.4.0" }
+csscolorparser = { version = "0.4.0" }
+term_size = "0.3.2"
+
