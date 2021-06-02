@@ -61,8 +61,28 @@ const PRESET_NAMES: [&str; 38] = [
     "yl_or_rd",
 ];
 
+const EXTRA_HELP: &str = "EXAMPLES:
+Display preset gradient
+
+    gradient -p rainbow
+
+Get 15 colors from preset gradient
+
+    gradient -p spectral -t 15
+
+Create & display custom gradient
+
+    gradient -c deeppink gold seagreen
+
+Create custom gradient & get 20 colors
+
+    gradient -c ff00ff 'rgb(50,200,70)' 'hwb(195,0,0.5)' -t 20
+
+REPOSITORY: https://github.com/mazznoer/gradient-rs
+";
+
 #[derive(Clap)]
-#[clap(name = "gradient", about)]
+#[clap(name = "gradient", about, after_help = EXTRA_HELP)]
 struct Opt {
     /// Preset gradients
     #[clap(short = 'p', long, possible_values = &PRESET_NAMES, value_name = "NAME", hide_possible_values = true)]
