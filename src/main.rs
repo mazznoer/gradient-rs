@@ -92,6 +92,10 @@ struct Opt {
     #[clap(short = 'c', long, parse(try_from_str = parse_color), multiple = true, value_name = "COLOR", conflicts_with = "preset")]
     custom: Option<Vec<Color>>,
 
+    /// Color position
+    #[clap(long, multiple = true, value_name = "FLOAT")]
+    position: Option<Vec<f64>>,
+
     /// Custom gradient blending mode
     #[clap(
         short = 'm',
@@ -218,6 +222,12 @@ fn main() {
     }
 
     if let Some(colors) = opt.custom {
+        let pos = if let Some(pos) = opt.position {
+            pos
+        } else {
+            vec![0.0, 1.0]
+        };
+
         let blend_mode = match opt.blend_mode {
             BlendMode::Rgb => colorgrad::BlendMode::Rgb,
             BlendMode::LinearRgb => colorgrad::BlendMode::LinearRgb,
@@ -233,6 +243,7 @@ fn main() {
 
         match colorgrad::CustomGradient::new()
             .colors(&colors)
+            .domain(&pos)
             .mode(blend_mode)
             .interpolation(interpolation)
             .build()
@@ -248,7 +259,7 @@ fn main() {
                     display_gradient_checkerboard(&grad, width, height);
                 }
             }
-            Err(err) => println!("Error: {}", err),
+            Err(err) => eprintln!("Custom gradient error: {}", err),
         }
     }
 }
