@@ -1,9 +1,10 @@
 #![allow(clippy::many_single_char_names)]
 
-use clap::{ArgEnum, Clap};
+use clap::{AppSettings, ArgEnum, Clap};
 use colored::Colorize;
-use colorgrad::Color;
+use colorgrad::{Color, Gradient};
 use csscolorparser::parse as parse_color;
+use std::process::exit;
 
 #[derive(Debug, ArgEnum)]
 enum BlendMode {
@@ -81,8 +82,8 @@ Create custom gradient & get 20 colors
 REPOSITORY: https://github.com/mazznoer/gradient-rs
 ";
 
-#[derive(Clap)]
-#[clap(name = "gradient", about, after_help = EXTRA_HELP)]
+#[derive(Debug, Clap)]
+#[clap(name = "gradient", version, about, after_help = EXTRA_HELP, setting = AppSettings::ArgRequiredElseHelp)]
 struct Opt {
     /// Preset gradients
     #[clap(short = 'p', long, possible_values = &PRESET_NAMES, value_name = "NAME", hide_possible_values = true)]
@@ -97,24 +98,12 @@ struct Opt {
     position: Option<Vec<f64>>,
 
     /// Custom gradient blending mode
-    #[clap(
-        short = 'm',
-        long,
-        arg_enum,
-        default_value = "rgb",
-        value_name = "COLOR-SPACE"
-    )]
-    blend_mode: BlendMode,
+    #[clap(short = 'm', long, arg_enum, value_name = "COLOR-SPACE")]
+    blend_mode: Option<BlendMode>,
 
     /// Custom gradient interpolation mode
-    #[clap(
-        short = 'i',
-        long,
-        arg_enum,
-        default_value = "linear",
-        value_name = "MODE"
-    )]
-    interpolation: Interpolation,
+    #[clap(short = 'i', long, arg_enum, value_name = "MODE")]
+    interpolation: Option<Interpolation>,
 
     /// List preset gradient names
     #[clap(long)]
@@ -151,15 +140,15 @@ fn main() {
     let opt = Opt::parse();
 
     if opt.list_presets {
-        println!("{:?}", &PRESET_NAMES);
-        return;
+        for name in &PRESET_NAMES {
+            println!("{}", name);
+        }
+        exit(0);
     }
 
-    let (width, _) = term_size::dimensions().unwrap_or((80, 0));
-
-    let width = if let Some(w) = opt.width { w } else { width };
-
-    let height = if let Some(h) = opt.height { h } else { 2 };
+    let (term_width, _) = term_size::dimensions().unwrap_or((80, 0));
+    let width = opt.width.unwrap_or(term_width);
+    let height = opt.height.unwrap_or(2);
 
     let base_color = if let Some(ref col) = opt.background {
         col.clone()
@@ -211,9 +200,9 @@ fn main() {
         };
 
         if let Some(n) = opt.take {
-            display_colors(&grad, &base_color, n);
+            display_colors_n(&grad, &base_color, n, term_width);
         } else if let Some(ref pos) = opt.sample {
-            display_colors_sample(&grad, &base_color, &pos);
+            display_colors_sample(&grad, &base_color, &pos, term_width);
         } else if let Some(ref bg_color) = opt.background {
             display_gradient(&grad, &bg_color, width, height);
         } else {
@@ -222,23 +211,19 @@ fn main() {
     }
 
     if let Some(colors) = opt.custom {
-        let pos = if let Some(pos) = opt.position {
-            pos
-        } else {
-            vec![0.0, 1.0]
-        };
+        let pos = opt.position.unwrap_or(vec![0.0, 1.0]);
 
         let blend_mode = match opt.blend_mode {
-            BlendMode::Rgb => colorgrad::BlendMode::Rgb,
-            BlendMode::LinearRgb => colorgrad::BlendMode::LinearRgb,
-            BlendMode::Hsv => colorgrad::BlendMode::Hsv,
-            BlendMode::Oklab => colorgrad::BlendMode::Oklab,
+            Some(BlendMode::LinearRgb) => colorgrad::BlendMode::LinearRgb,
+            Some(BlendMode::Hsv) => colorgrad::BlendMode::Hsv,
+            Some(BlendMode::Oklab) => colorgrad::BlendMode::Oklab,
+            _ => colorgrad::BlendMode::Rgb,
         };
 
         let interpolation = match opt.interpolation {
-            Interpolation::Linear => colorgrad::Interpolation::Linear,
-            Interpolation::CatmullRom => colorgrad::Interpolation::CatmullRom,
-            Interpolation::Basis => colorgrad::Interpolation::Basis,
+            Some(Interpolation::CatmullRom) => colorgrad::Interpolation::CatmullRom,
+            Some(Interpolation::Basis) => colorgrad::Interpolation::Basis,
+            _ => colorgrad::Interpolation::Linear,
         };
 
         match colorgrad::CustomGradient::new()
@@ -250,18 +235,23 @@ fn main() {
         {
             Ok(grad) => {
                 if let Some(n) = opt.take {
-                    display_colors(&grad, &base_color, n);
+                    display_colors_n(&grad, &base_color, n, term_width);
                 } else if let Some(ref pos) = opt.sample {
-                    display_colors_sample(&grad, &base_color, &pos);
+                    display_colors_sample(&grad, &base_color, &pos, term_width);
                 } else if let Some(ref bg_color) = opt.background {
                     display_gradient(&grad, &bg_color, width, height);
                 } else {
                     display_gradient_checkerboard(&grad, width, height);
                 }
             }
-            Err(err) => eprintln!("Custom gradient error: {}", err),
+            Err(err) => {
+                eprintln!("Custom gradient error: {}", err);
+                exit(1);
+            }
         }
     }
+
+    exit(0);
 }
 
 fn blend(color: &Color, bg: &Color) -> Color {
@@ -289,52 +279,63 @@ fn color_luminance(col: &Color) -> f64 {
     0.2126 * lum(r) + 0.7152 * lum(g) + 0.0722 * lum(b)
 }
 
-fn display_colors(grad: &colorgrad::Gradient, bg: &Color, n: usize) {
-    for col in grad.colors(n) {
-        let c = blend(&col, &bg);
-        let (r, g, b, _) = c.rgba_u8();
+fn display_colors(colors: &[Color], background: &Color, term_width: usize) {
+    if atty::is(atty::Stream::Stdout) {
+        let mut width = term_width;
 
-        let fg = if color_luminance(&c) < 0.3 {
-            (255, 255, 255)
-        } else {
-            (0, 0, 0)
-        };
+        for col in colors {
+            let s = col.to_hex_string();
 
-        print!(
-            "{} ",
-            col.to_hex_string()
-                .truecolor(fg.0, fg.1, fg.2)
-                .on_truecolor(r, g, b)
-        );
+            if width < s.len() {
+                println!();
+                width = term_width;
+            }
+
+            let c = blend(&col, &background);
+            let (r, g, b, _) = c.rgba_u8();
+
+            let fg = if color_luminance(&c) < 0.3 {
+                (255, 255, 255)
+            } else {
+                (0, 0, 0)
+            };
+
+            print!("{}", &s.truecolor(fg.0, fg.1, fg.2).on_truecolor(r, g, b));
+            width -= s.len();
+
+            if width >= 1 {
+                print!(" ");
+                width -= 1;
+            }
+        }
+
+        println!();
+    } else {
+        for col in colors {
+            println!("{}", col.to_hex_string());
+        }
     }
-
-    println!();
 }
 
-fn display_colors_sample(grad: &colorgrad::Gradient, background: &Color, positions: &[f64]) {
-    for pos in positions {
-        let col = grad.at(*pos);
-        let c = blend(&col, &background);
-        let (r, g, b, _) = c.rgba_u8();
-
-        let fg = if color_luminance(&c) < 0.3 {
-            (255, 255, 255)
-        } else {
-            (0, 0, 0)
-        };
-
-        print!(
-            "{} ",
-            col.to_hex_string()
-                .truecolor(fg.0, fg.1, fg.2)
-                .on_truecolor(r, g, b)
-        );
-    }
-
-    println!();
+fn display_colors_n(grad: &Gradient, background: &Color, n: usize, term_width: usize) {
+    display_colors(&grad.colors(n), &background, term_width);
 }
 
-fn display_gradient(grad: &colorgrad::Gradient, background: &Color, w: usize, h: usize) {
+fn display_colors_sample(
+    grad: &Gradient,
+    background: &Color,
+    positions: &[f64],
+    term_width: usize,
+) {
+    let colors = positions.iter().map(|t| grad.at(*t)).collect::<Vec<_>>();
+    display_colors(&colors, &background, term_width);
+}
+
+fn display_gradient(grad: &Gradient, background: &Color, w: usize, h: usize) {
+    if atty::isnt(atty::Stream::Stdout) {
+        return;
+    }
+
     let (dmin, dmax) = grad.domain();
 
     for _ in 0..h {
@@ -348,7 +349,11 @@ fn display_gradient(grad: &colorgrad::Gradient, background: &Color, w: usize, h:
     }
 }
 
-fn display_gradient_checkerboard(grad: &colorgrad::Gradient, w: usize, h: usize) {
+fn display_gradient_checkerboard(grad: &Gradient, w: usize, h: usize) {
+    if atty::isnt(atty::Stream::Stdout) {
+        return;
+    }
+
     let (dmin, dmax) = grad.domain();
     let bg_0 = Color::from_rgb(0.05, 0.05, 0.05);
     let bg_1 = Color::from_rgb(0.20, 0.20, 0.20);
