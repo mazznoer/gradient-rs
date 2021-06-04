@@ -37,7 +37,7 @@ const PRESET_NAMES: [&str; 38] = [
     "bu_pu",
     "cividis",
     "cool",
-    "cubehelix_default",
+    "cubehelix",
     "gn_bu",
     "greens",
     "greys",
