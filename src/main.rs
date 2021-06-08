@@ -92,13 +92,13 @@ REPOSITORY: https://github.com/mazznoer/gradient-rs
 ";
 
 #[derive(Debug, Clap)]
-#[clap(name = "gradient", version, about, after_help = EXTRA_HELP, setting = AppSettings::ArgRequiredElseHelp)]
+#[clap(name = "gradient", version, about, after_long_help = EXTRA_HELP, setting = AppSettings::ArgRequiredElseHelp)]
 struct Opt {
-    /// List preset gradient names
+    /// List all preset gradient names
     #[clap(short = 'l', long, help_heading = Some("PRESET GRADIENT"))]
-    list_presets: bool,
+    list_preset: bool,
 
-    /// Preset gradients
+    /// Preset gradient
     #[clap(short = 'p', long, possible_values = &PRESET_NAMES, value_name = "NAME", hide_possible_values = true, help_heading = Some("PRESET GRADIENT"))]
     preset: Option<String>,
 
@@ -106,7 +106,7 @@ struct Opt {
     #[clap(short = 'c', long, parse(try_from_str = parse_color), multiple = true, min_values = 1, value_name = "COLOR", conflicts_with = "preset", help_heading = Some("CUSTOM GRADIENT"))]
     custom: Option<Vec<Color>>,
 
-    /// Color position
+    /// Custom gradient color position
     #[clap(short = 'P', long, multiple = true, min_values = 2, value_name = "FLOAT", help_heading = Some("CUSTOM GRADIENT"))]
     position: Option<Vec<f64>>,
 
@@ -161,7 +161,7 @@ struct Config {
 fn main() {
     let opt = Opt::parse();
 
-    if opt.list_presets {
+    if opt.list_preset {
         for name in &PRESET_NAMES {
             println!("{}", name);
         }
@@ -308,33 +308,51 @@ fn color_luminance(col: &Color) -> f64 {
     0.2126 * lum(r) + 0.7152 * lum(g) + 0.0722 * lum(b)
 }
 
+fn format_alpha(a: f64) -> String {
+    let s = format!(",{:.2}%", a * 100.0);
+    if let Some(_) = s.strip_prefix(",100") {
+        return "".to_string();
+    }
+    s
+}
+
 fn format_color(col: &Color, format: OutputColor) -> String {
     match format {
         OutputColor::Hex => col.to_hex_string(),
-        OutputColor::Rgb => col.to_rgb_string(),
+        OutputColor::Rgb => {
+            let (r, g, b, _) = col.rgba_u8();
+            let x = col.rgba();
+            format!("rgb({},{},{}{})", r, g, b, format_alpha(x.3))
+        }
         OutputColor::Hsl => {
             let (h, s, l, a) = col.to_hsla();
-            if a < 1.0 {
-                format!("hsl({},{}%,{}%,{})", h, s * 100.0, l * 100.0, a)
-            } else {
-                format!("hsl({},{}%,{}%)", h, s * 100.0, l * 100.0)
-            }
+            format!(
+                "hsl({:.2},{:.2}%,{:.2}%{})",
+                h,
+                s * 100.0,
+                l * 100.0,
+                format_alpha(a)
+            )
         }
         OutputColor::Hsv => {
             let (h, s, v, a) = col.to_hsva();
-            if a < 1.0 {
-                format!("hsv({},{}%,{}%,{})", h, s * 100.0, v * 100.0, a)
-            } else {
-                format!("hsv({},{}%,{}%)", h, s * 100.0, v * 100.)
-            }
+            format!(
+                "hsv({:.2},{:.2}%,{:.2}%{})",
+                h,
+                s * 100.0,
+                v * 100.0,
+                format_alpha(a)
+            )
         }
         OutputColor::Hwb => {
             let (h, w, b, a) = col.to_hwba();
-            if a < 1.0 {
-                format!("hwb({},{}%,{}%,{})", h, w * 100.0, b * 100.0, a)
-            } else {
-                format!("hwb({},{}%,{}%)", h, w * 100.0, b * 100.0)
-            }
+            format!(
+                "hwb({:.2},{:.2}%,{:.2}%{})",
+                h,
+                w * 100.0,
+                b * 100.0,
+                format_alpha(a)
+            )
         }
     }
 }
