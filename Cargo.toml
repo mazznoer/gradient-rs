@@ -1,9 +1,9 @@
 [package]
 name = "gradient"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Nor Khasyatillah <mazznoer@ymail.com>"]
 edition = "2018"
-description = "A command-line tool to play with color gradient"
+description = "A command line tool for playing with color gradient"
 keywords = ["color", "gradient", "colormap", "color-scales", "color-scheme"]
 categories = ["command-line-utilities", "graphics"]
 readme = "README.md"
