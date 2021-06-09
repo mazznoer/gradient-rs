@@ -32,43 +32,43 @@ enum OutputColor {
 
 const PRESET_NAMES: [&str; 38] = [
     "blues",
-    "br_bg",
-    "bu_gn",
-    "bu_pu",
+    "br-bg",
+    "bu-gn",
+    "bu-pu",
     "cividis",
     "cool",
     "cubehelix",
-    "gn_bu",
+    "gn-bu",
     "greens",
     "greys",
     "inferno",
     "magma",
-    "or_rd",
+    "or-rd",
     "oranges",
-    "pi_yg",
+    "pi-yg",
     "plasma",
-    "pr_gn",
-    "pu_bu",
-    "pu_bu_gn",
-    "pu_or",
-    "pu_rd",
+    "pr-gn",
+    "pu-bu",
+    "pu-bu-gn",
+    "pu-or",
+    "pu-rd",
     "purples",
     "rainbow",
-    "rd_bu",
-    "rd_gy",
-    "rd_pu",
-    "rd_yl_bu",
-    "rd_yl_gn",
+    "rd-bu",
+    "rd-gy",
+    "rd-pu",
+    "rd-yl-bu",
+    "rd-yl-gn",
     "reds",
     "sinebow",
     "spectral",
     "turbo",
     "viridis",
     "warm",
-    "yl_gn",
-    "yl_gn_bu",
-    "yl_or_br",
-    "yl_or_rd",
+    "yl-gn",
+    "yl-gn-bu",
+    "yl-or-br",
+    "yl-or-rd",
 ];
 
 const EXTRA_HELP: &str = "EXAMPLES:
@@ -99,7 +99,7 @@ struct Opt {
     list_preset: bool,
 
     /// Preset gradient
-    #[clap(short = 'p', long, possible_values = &PRESET_NAMES, value_name = "NAME", hide_possible_values = true, help_heading = Some("PRESET GRADIENT"))]
+    #[clap(short = 'p', long, value_name = "NAME", help_heading = Some("PRESET GRADIENT"))]
     preset: Option<String>,
 
     /// Custom gradient
@@ -186,7 +186,7 @@ fn main() {
     };
 
     if let Some(name) = opt.preset {
-        let grad = match name.as_ref() {
+        let grad = match name.to_lowercase().replace("-", "_").as_ref() {
             "blues" => colorgrad::blues(),
             "br_bg" => colorgrad::br_bg(),
             "bu_gn" => colorgrad::bu_gn(),
@@ -225,7 +225,10 @@ fn main() {
             "yl_gn_bu" => colorgrad::yl_gn_bu(),
             "yl_or_br" => colorgrad::yl_or_br(),
             "yl_or_rd" => colorgrad::yl_or_rd(),
-            _ => colorgrad::greys(),
+            _ => {
+                eprintln!("Error: Invalid preset gradient name. Use -l flag to list all preset gradient names.");
+                exit(1);
+            }
         };
 
         if let Some(n) = opt.take {
