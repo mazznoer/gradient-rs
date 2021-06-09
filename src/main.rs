@@ -25,6 +25,7 @@ enum Interpolation {
 enum OutputColor {
     Hex,
     Rgb,
+    Rgb255,
     Hsl,
     Hsv,
     Hwb,
@@ -313,7 +314,7 @@ fn color_luminance(col: &Color) -> f64 {
 
 fn format_alpha(a: f64) -> String {
     let s = format!(",{:.2}%", a * 100.0);
-    if let Some(_) = s.strip_prefix(",100") {
+    if s.strip_prefix(",100").is_some() {
         return "".to_string();
     }
     s
@@ -323,6 +324,16 @@ fn format_color(col: &Color, format: OutputColor) -> String {
     match format {
         OutputColor::Hex => col.to_hex_string(),
         OutputColor::Rgb => {
+            let (r, g, b, a) = col.rgba();
+            format!(
+                "rgb({:.2}%,{:.2}%,{:.2}%{})",
+                r * 100.0,
+                g * 100.0,
+                b * 100.0,
+                format_alpha(a)
+            )
+        }
+        OutputColor::Rgb255 => {
             let (r, g, b, _) = col.rgba_u8();
             let x = col.rgba();
             format!("rgb({},{},{}{})", r, g, b, format_alpha(x.3))
