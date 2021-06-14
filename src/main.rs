@@ -424,7 +424,7 @@ fn display_gradient(grad: &Gradient, w: usize, h: usize, cfg: &Config) {
     }
 
     let (dmin, dmax) = grad.domain();
-    let w2 = (w * 2) as f64;
+    let w2 = (w * 2 - 1) as f64;
 
     for _ in 0..h {
         let mut i = 0;
@@ -457,7 +457,7 @@ fn display_gradient_checkerboard(grad: &Gradient, w: usize, h: usize, cfg: &Conf
     }
 
     let (dmin, dmax) = grad.domain();
-    let w2 = (w * 2) as f64;
+    let w2 = (w * 2 - 1) as f64;
     let bg_0 = Color::from_rgb(0.05, 0.05, 0.05);
     let bg_1 = Color::from_rgb(0.20, 0.20, 0.20);
 
