@@ -424,12 +424,27 @@ fn display_gradient(grad: &Gradient, w: usize, h: usize, cfg: &Config) {
     }
 
     let (dmin, dmax) = grad.domain();
+    let w2 = (w * 2) as f64;
 
     for _ in 0..h {
-        for i in 0..w {
-            let col = grad.at(remap(i as f64, 0.0, w as f64, dmin, dmax));
-            let (r, g, b, _) = blend(&col, &cfg.background).rgba_u8();
-            print!("{}", " ".on_truecolor(r, g, b));
+        let mut i = 0;
+
+        for _ in 0..w {
+            let col1 = grad.at(remap(i as f64, 0.0, w2, dmin, dmax));
+            i += 1;
+
+            let col2 = grad.at(remap(i as f64, 0.0, w2, dmin, dmax));
+            i += 1;
+
+            let col1 = blend(&col1, &cfg.background).rgba_u8();
+            let col2 = blend(&col2, &cfg.background).rgba_u8();
+
+            print!(
+                "{}",
+                "▌"
+                    .truecolor(col1.0, col1.1, col1.2)
+                    .on_truecolor(col2.0, col2.1, col2.2)
+            );
         }
 
         println!();
@@ -442,21 +457,35 @@ fn display_gradient_checkerboard(grad: &Gradient, w: usize, h: usize, cfg: &Conf
     }
 
     let (dmin, dmax) = grad.domain();
+    let w2 = (w * 2) as f64;
     let bg_0 = Color::from_rgb(0.05, 0.05, 0.05);
     let bg_1 = Color::from_rgb(0.20, 0.20, 0.20);
 
     for y in 0..h {
-        for x in 0..w {
-            let col = grad.at(remap(x as f64, 0.0, w as f64, dmin, dmax));
+        let mut i = 0;
 
+        for x in 0..w {
             let bg = if ((x / 2) & 1) ^ (y & 1) == 1 {
                 &bg_0
             } else {
                 &bg_1
             };
 
-            let (r, g, b, _) = blend(&col, &bg).rgba_u8();
-            print!("{}", " ".on_truecolor(r, g, b));
+            let col1 = grad.at(remap(i as f64, 0.0, w2, dmin, dmax));
+            i += 1;
+
+            let col2 = grad.at(remap(i as f64, 0.0, w2, dmin, dmax));
+            i += 1;
+
+            let col1 = blend(&col1, &bg).rgba_u8();
+            let col2 = blend(&col2, &bg).rgba_u8();
+
+            print!(
+                "{}",
+                "▌"
+                    .truecolor(col1.0, col1.1, col1.2)
+                    .on_truecolor(col2.0, col2.1, col2.2)
+            );
         }
 
         println!();
