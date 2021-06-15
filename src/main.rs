@@ -3,8 +3,7 @@
 use clap::{AppSettings, ArgEnum, Clap};
 use colored::Colorize;
 use colorgrad::{Color, Gradient};
-use csscolorparser::parse as parse_color;
-use std::process::exit;
+use std::{ffi::OsStr, fs::File, io::BufReader, path::PathBuf, process::exit};
 
 #[derive(Debug, ArgEnum)]
 enum BlendMode {
@@ -119,6 +118,24 @@ struct Opt {
     #[clap(short = 'i', long, arg_enum, value_name = "MODE", help_heading = Some("CUSTOM GRADIENT"))]
     interpolation: Option<Interpolation>,
 
+    /// GGR background color [default: white]
+    #[clap(long, parse(try_from_str = parse_color), value_name = "COLOR")]
+    ggr_bg: Option<Color>,
+
+    /// GGR foreground color [default: black]
+    #[clap(long, parse(try_from_str = parse_color), value_name = "COLOR")]
+    ggr_fg: Option<Color>,
+
+    /// Gradient file(s)
+    #[clap(
+        short = 'f',
+        long,
+        min_values = 1,
+        value_name = "FILE",
+        parse(from_os_str)
+    )]
+    file: Option<Vec<PathBuf>>,
+
     /// Gradient display width [default: terminal width]
     #[clap(short = 'W', long, value_name = "NUM")]
     width: Option<usize>,
@@ -156,7 +173,17 @@ struct Config {
     is_stdout: bool,
     background: Color,
     term_width: usize,
+    width: usize,
+    height: usize,
     output_format: OutputColor,
+}
+
+#[derive(Debug)]
+enum OutputMode {
+    Gradient,
+    GradientCB,
+    ColorsN(usize),
+    ColorsSample(Vec<f64>),
 }
 
 fn main() {
@@ -170,20 +197,33 @@ fn main() {
     }
 
     let (term_width, _) = term_size::dimensions().unwrap_or((80, 0));
-    let width = opt.width.unwrap_or(term_width);
-    let height = opt.height.unwrap_or(2);
 
-    let base_color = if let Some(ref col) = opt.background {
-        col.clone()
+    let (base_color, ceckerboard_bg) = if let Some(col) = opt.background {
+        (col, false)
     } else {
-        Color::from_rgb(0.0, 0.0, 0.0)
+        (Color::from_rgb(0.0, 0.0, 0.0), true)
     };
+
+    let ggr_bg_color = opt.ggr_bg.unwrap_or_else(|| Color::from_rgb(1.0, 1.0, 1.0));
+    let ggr_fg_color = opt.ggr_fg.unwrap_or_else(|| Color::from_rgb(0.0, 0.0, 0.0));
 
     let cfg = Config {
         is_stdout: atty::is(atty::Stream::Stdout),
         background: base_color,
         term_width,
+        width: opt.width.unwrap_or(term_width),
+        height: opt.height.unwrap_or(2),
         output_format: opt.format.unwrap_or(OutputColor::Hex),
+    };
+
+    let output_mode = if let Some(n) = opt.take {
+        OutputMode::ColorsN(n)
+    } else if let Some(pos) = opt.sample {
+        OutputMode::ColorsSample(pos)
+    } else if ceckerboard_bg {
+        OutputMode::GradientCB
+    } else {
+        OutputMode::Gradient
     };
 
     if let Some(name) = opt.preset {
@@ -232,15 +272,7 @@ fn main() {
             }
         };
 
-        if let Some(n) = opt.take {
-            display_colors_n(&grad, n, &cfg);
-        } else if let Some(ref pos) = opt.sample {
-            display_colors_sample(&grad, &pos, &cfg);
-        } else if let Some(ref _bg_color) = opt.background {
-            display_gradient(&grad, width, height, &cfg);
-        } else {
-            display_gradient_checkerboard(&grad, width, height, &cfg);
-        }
+        handle_output(&grad, &output_mode, &cfg);
     }
 
     if let Some(colors) = opt.custom {
@@ -267,15 +299,7 @@ fn main() {
             .build()
         {
             Ok(grad) => {
-                if let Some(n) = opt.take {
-                    display_colors_n(&grad, n, &cfg);
-                } else if let Some(ref pos) = opt.sample {
-                    display_colors_sample(&grad, &pos, &cfg);
-                } else if let Some(ref _bg_color) = opt.background {
-                    display_gradient(&grad, width, height, &cfg);
-                } else {
-                    display_gradient_checkerboard(&grad, width, height, &cfg);
-                }
+                handle_output(&grad, &output_mode, &cfg);
             }
             Err(err) => {
                 eprintln!("Custom gradient error: {}", err);
@@ -284,7 +308,39 @@ fn main() {
         }
     }
 
+    if let Some(files) = opt.file {
+        for path in files {
+            if let Some("ggr") = path.extension().and_then(OsStr::to_str) {
+                println!("{}", &path.display().to_string().italic());
+                let f = File::open(&path).unwrap();
+
+                match colorgrad::parse_ggr(BufReader::new(f), &ggr_fg_color, &ggr_bg_color) {
+                    Ok((grad, name)) => {
+                        println!("{} {}", "GIMP".bold(), name);
+                        handle_output(&grad, &output_mode, &cfg);
+                    }
+                    Err(err) => {
+                        println!("{}", err);
+                    }
+                }
+            }
+        }
+    }
+
     exit(0);
+}
+
+fn parse_color(s: &str) -> Result<Color, colorgrad::ParseColorError> {
+    s.parse::<Color>()
+}
+
+fn handle_output(grad: &Gradient, mode: &OutputMode, cfg: &Config) {
+    match mode {
+        OutputMode::Gradient => display_gradient(&grad, &cfg),
+        OutputMode::GradientCB => display_gradient_checkerboard(&grad, &cfg),
+        OutputMode::ColorsN(n) => display_colors_n(&grad, *n, &cfg),
+        OutputMode::ColorsSample(ref pos) => display_colors_sample(&grad, &pos, &cfg),
+    }
 }
 
 fn blend(color: &Color, bg: &Color) -> Color {
@@ -418,18 +474,18 @@ fn display_colors_sample(grad: &Gradient, positions: &[f64], cfg: &Config) {
     display_colors(&colors, &cfg);
 }
 
-fn display_gradient(grad: &Gradient, w: usize, h: usize, cfg: &Config) {
+fn display_gradient(grad: &Gradient, cfg: &Config) {
     if !cfg.is_stdout {
         return;
     }
 
     let (dmin, dmax) = grad.domain();
-    let w2 = (w * 2 - 1) as f64;
+    let w2 = (cfg.width * 2 - 1) as f64;
 
-    for _ in 0..h {
+    for _ in 0..cfg.height {
         let mut i = 0;
 
-        for _ in 0..w {
+        for _ in 0..cfg.width {
             let col1 = grad.at(remap(i as f64, 0.0, w2, dmin, dmax));
             i += 1;
 
@@ -451,20 +507,20 @@ fn display_gradient(grad: &Gradient, w: usize, h: usize, cfg: &Config) {
     }
 }
 
-fn display_gradient_checkerboard(grad: &Gradient, w: usize, h: usize, cfg: &Config) {
+fn display_gradient_checkerboard(grad: &Gradient, cfg: &Config) {
     if !cfg.is_stdout {
         return;
     }
 
     let (dmin, dmax) = grad.domain();
-    let w2 = (w * 2 - 1) as f64;
+    let w2 = (cfg.width * 2 - 1) as f64;
     let bg_0 = Color::from_rgb(0.05, 0.05, 0.05);
     let bg_1 = Color::from_rgb(0.20, 0.20, 0.20);
 
-    for y in 0..h {
+    for y in 0..cfg.height {
         let mut i = 0;
 
-        for x in 0..w {
+        for x in 0..cfg.width {
             let bg = if ((x / 2) & 1) ^ (y & 1) == 1 {
                 &bg_0
             } else {
