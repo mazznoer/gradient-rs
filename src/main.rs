@@ -5,6 +5,9 @@ use colored::Colorize;
 use colorgrad::{Color, Gradient};
 use std::{ffi::OsStr, fs::File, io::BufReader, path::PathBuf, process::exit};
 
+mod svg_gradient;
+use svg_gradient::parse_svg;
+
 #[derive(Debug, ArgEnum)]
 enum BlendMode {
     Rgb,
@@ -126,6 +129,10 @@ struct Opt {
     #[clap(long, parse(try_from_str = parse_color), value_name = "COLOR")]
     ggr_fg: Option<Color>,
 
+    /// Pick SVG gradient by ID
+    #[clap(long, value_name = "ID")]
+    svg_id: Option<String>,
+
     /// Gradient file(s)
     #[clap(
         short = 'f',
@@ -164,7 +171,7 @@ struct Opt {
     sample: Option<Vec<f64>>,
 
     /// Output color format
-    #[clap(short = 'o', long, arg_enum)]
+    #[clap(short = 'o', long, arg_enum, value_name = "FORMAT")]
     format: Option<OutputColor>,
 }
 
@@ -180,8 +187,7 @@ struct Config {
 
 #[derive(Debug)]
 enum OutputMode {
-    Gradient,
-    GradientCB,
+    Gradient(bool),
     ColorsN(usize),
     ColorsSample(Vec<f64>),
 }
@@ -220,10 +226,8 @@ fn main() {
         OutputMode::ColorsN(n)
     } else if let Some(pos) = opt.sample {
         OutputMode::ColorsSample(pos)
-    } else if ceckerboard_bg {
-        OutputMode::GradientCB
     } else {
-        OutputMode::Gradient
+        OutputMode::Gradient(ceckerboard_bg)
     };
 
     if let Some(name) = opt.preset {
@@ -310,18 +314,58 @@ fn main() {
 
     if let Some(files) = opt.file {
         for path in files {
-            if let Some("ggr") = path.extension().and_then(OsStr::to_str) {
-                println!("{}", &path.display().to_string().italic());
-                let f = File::open(&path).unwrap();
+            if let Some(ext) = path.extension().and_then(OsStr::to_str) {
+                match ext.to_lowercase().as_ref() {
+                    "ggr" => {
+                        println!("{}", &path.display().to_string().italic());
+                        let f = File::open(&path).unwrap();
 
-                match colorgrad::parse_ggr(BufReader::new(f), &ggr_fg_color, &ggr_bg_color) {
-                    Ok((grad, name)) => {
-                        println!("{} {}", "GIMP".bold(), name);
-                        handle_output(&grad, &output_mode, &cfg);
+                        match colorgrad::parse_ggr(BufReader::new(f), &ggr_fg_color, &ggr_bg_color)
+                        {
+                            Ok((grad, name)) => {
+                                println!("{} {}", "GIMP".bold(), name);
+                                handle_output(&grad, &output_mode, &cfg);
+                            }
+                            Err(err) => {
+                                println!("{}", err);
+                            }
+                        }
                     }
-                    Err(err) => {
-                        println!("{}", err);
+                    "svg" => {
+                        let filename = &path.display().to_string();
+                        let gradients =
+                            parse_svg(path.into_os_string().into_string().unwrap().as_ref());
+
+                        if gradients.is_empty() {
+                            println!("{}", filename.italic());
+                            println!("{}", "No gradients.".red());
+                        }
+
+                        for (grad, id) in gradients {
+                            let (id, stop) = if let Some(id) = id {
+                                if let Some(ref id2) = opt.svg_id {
+                                    if &id == id2 {
+                                        (format!("#{}", id), true)
+                                    } else {
+                                        continue;
+                                    }
+                                } else {
+                                    (format!("#{}", id), false)
+                                }
+                            } else {
+                                ("".to_string(), false)
+                            };
+
+                            println!("{}", filename.italic());
+                            println!("{} {}", "SVG".bold(), id);
+                            handle_output(&grad, &output_mode, &cfg);
+
+                            if stop {
+                                break;
+                            }
+                        }
                     }
+                    _ => continue,
                 }
             }
         }
@@ -336,8 +380,13 @@ fn parse_color(s: &str) -> Result<Color, colorgrad::ParseColorError> {
 
 fn handle_output(grad: &Gradient, mode: &OutputMode, cfg: &Config) {
     match mode {
-        OutputMode::Gradient => display_gradient(&grad, &cfg),
-        OutputMode::GradientCB => display_gradient_checkerboard(&grad, &cfg),
+        OutputMode::Gradient(checkerboard) => {
+            if *checkerboard {
+                display_gradient_checkerboard(&grad, &cfg);
+            } else {
+                display_gradient(&grad, &cfg);
+            }
+        }
         OutputMode::ColorsN(n) => display_colors_n(&grad, *n, &cfg),
         OutputMode::ColorsSample(ref pos) => display_colors_sample(&grad, &pos, &cfg),
     }
