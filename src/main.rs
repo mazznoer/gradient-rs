@@ -113,11 +113,11 @@ struct Opt {
     #[clap(short = 'P', long, multiple = true, min_values = 2, value_name = "FLOAT", help_heading = Some("CUSTOM GRADIENT"))]
     position: Option<Vec<f64>>,
 
-    /// Custom gradient blending mode
+    /// Custom gradient blending mode [default: oklab]
     #[clap(short = 'm', long, arg_enum, value_name = "COLOR-SPACE", help_heading = Some("CUSTOM GRADIENT"))]
     blend_mode: Option<BlendMode>,
 
-    /// Custom gradient interpolation mode
+    /// Custom gradient interpolation mode [default: catmull-rom]
     #[clap(short = 'i', long, arg_enum, value_name = "MODE", help_heading = Some("CUSTOM GRADIENT"))]
     interpolation: Option<Interpolation>,
 
@@ -283,10 +283,10 @@ fn main() {
         let pos = opt.position.unwrap_or_else(|| vec![0.0, 1.0]);
 
         let blend_mode = match opt.blend_mode {
+            Some(BlendMode::Rgb) => colorgrad::BlendMode::Rgb,
             Some(BlendMode::LinearRgb) => colorgrad::BlendMode::LinearRgb,
             Some(BlendMode::Hsv) => colorgrad::BlendMode::Hsv,
-            Some(BlendMode::Oklab) => colorgrad::BlendMode::Oklab,
-            _ => colorgrad::BlendMode::Rgb,
+            _ => colorgrad::BlendMode::Oklab,
         };
 
         let interpolation = match opt.interpolation {
