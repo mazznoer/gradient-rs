@@ -290,9 +290,9 @@ fn main() {
         };
 
         let interpolation = match opt.interpolation {
-            Some(Interpolation::CatmullRom) => colorgrad::Interpolation::CatmullRom,
+            Some(Interpolation::Linear) => colorgrad::Interpolation::Linear,
             Some(Interpolation::Basis) => colorgrad::Interpolation::Basis,
-            _ => colorgrad::Interpolation::Linear,
+            _ => colorgrad::Interpolation::CatmullRom,
         };
 
         match colorgrad::CustomGradient::new()
