@@ -38,7 +38,6 @@ fn parse_styles(s: &str) -> (Option<&str>, Option<&str>) {
 
 #[derive(Debug)]
 struct SvgGradient {
-    valid: bool,
     id: Option<String>,
     colors: Vec<Color>,
     pos: Vec<f64>,
@@ -62,7 +61,6 @@ pub(crate) fn parse_svg(path: &str) -> Vec<(Gradient, Option<String>)> {
                         None
                     };
                     res.push(SvgGradient {
-                        valid: true,
                         id,
                         colors: Vec::new(),
                         pos: Vec::new(),
@@ -72,10 +70,10 @@ pub(crate) fn parse_svg(path: &str) -> Vec<(Gradient, Option<String>)> {
                     index += 1;
                     prev_pos = f64::NEG_INFINITY;
                 }
-                _ => {}
+                Type::Empty => {}
             },
             Event::Tag(Stop, _, attributes) => {
-                if !res[index].valid || res.is_empty() {
+                if res.is_empty() {
                     continue;
                 }
 
@@ -92,9 +90,11 @@ pub(crate) fn parse_svg(path: &str) -> Vec<(Gradient, Option<String>)> {
 
                 if let Some(styles) = attributes.get("style") {
                     let (col, opac) = parse_styles(styles);
+
                     if let Some(c) = col {
                         color = Some(c);
                     }
+
                     if let Some(o) = opac {
                         opacity = Some(o);
                     }
@@ -130,25 +130,41 @@ pub(crate) fn parse_svg(path: &str) -> Vec<(Gradient, Option<String>)> {
                     None
                 };
 
-                if let (Some(offset), Some(color)) = (offset, color) {
-                    let color = if let Some(opacity) = opacity {
-                        let (r, g, b, _) = color.rgba();
-                        Color::from_rgba(r, g, b, opacity.clamp(0.0, 1.0))
-                    } else {
-                        color
-                    };
-                    let position = if offset < prev_pos {
-                        prev_pos
-                    } else {
-                        prev_pos = offset;
-                        offset
-                    };
-                    res[index].colors.push(color);
-                    res[index].pos.push(position);
+                let (offset, color) = match (offset, color) {
+                    (Some(offset), Some(color)) => {
+                        // Both offset and color specified
+                        (offset, color)
+                    }
+                    (Some(offset), None) => {
+                        // Just offset, use black
+                        (offset, Color::from_rgb(0.0, 0.0, 0.0))
+                    }
+                    (None, Some(color)) => {
+                        // Just color, use previous pos
+                        (prev_pos, color)
+                    }
+                    (None, None) => {
+                        // Without offset & color
+                        (prev_pos, Color::from_rgb(0.0, 0.0, 0.0))
+                    }
+                };
+
+                let color = if let Some(opacity) = opacity {
+                    let (r, g, b, _) = color.rgba();
+                    Color::from_rgba(r, g, b, opacity.clamp(0.0, 1.0))
                 } else {
-                    // Invalid stop, mark the gradient as invalid
-                    res[index].valid = false;
-                }
+                    color
+                };
+
+                let position = if offset < prev_pos {
+                    prev_pos
+                } else {
+                    prev_pos = if offset.is_finite() { offset } else { 0.0 };
+                    prev_pos
+                };
+
+                res[index].colors.push(color);
+                res[index].pos.push(position);
             }
             _ => {}
         }
@@ -156,9 +172,19 @@ pub(crate) fn parse_svg(path: &str) -> Vec<(Gradient, Option<String>)> {
 
     let mut gradients = Vec::new();
 
-    for g in res {
-        if !g.valid {
+    for mut g in res {
+        if g.colors.is_empty() {
             continue;
+        }
+
+        if g.pos[0] > 0.0 {
+            g.pos.insert(0, 0.0);
+            g.colors.insert(0, g.colors[0].clone());
+        }
+
+        if g.pos.last().unwrap() < &1.0 {
+            g.pos.push(1.0);
+            g.colors.push(g.colors.last().unwrap().clone());
         }
 
         let grad = CustomGradient::new()
@@ -166,8 +192,9 @@ pub(crate) fn parse_svg(path: &str) -> Vec<(Gradient, Option<String>)> {
             .domain(&g.pos)
             .build();
 
-        if let Ok(grad) = grad {
-            gradients.push((grad, g.id));
+        match grad {
+            Ok(grad) => gradients.push((grad, g.id)),
+            Err(e) => eprintln!("{}", e),
         }
     }
 
