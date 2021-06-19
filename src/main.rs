@@ -178,6 +178,7 @@ struct Opt {
 #[derive(Debug)]
 struct Config {
     is_stdout: bool,
+    is_bg: bool,
     background: Color,
     term_width: usize,
     width: usize,
@@ -215,6 +216,7 @@ fn main() {
 
     let cfg = Config {
         is_stdout: atty::is(atty::Stream::Stdout),
+        is_bg: !ceckerboard_bg,
         background: base_color,
         term_width,
         width: opt.width.unwrap_or(term_width),
@@ -419,7 +421,7 @@ fn color_luminance(col: &Color) -> f64 {
 
 fn format_alpha(a: f64) -> String {
     let s = format!(",{:.2}%", a * 100.0);
-    if s.strip_prefix(",100").is_some() {
+    if s.starts_with(",100") {
         return "".to_string();
     }
     s
@@ -481,6 +483,13 @@ fn display_colors(colors: &[Color], cfg: &Config) {
         let mut width = cfg.term_width;
 
         for col in colors {
+            let (col, bg) = if cfg.is_bg {
+                let c = blend(&col, &cfg.background);
+                (c.clone(), c)
+            } else {
+                (col.clone(), blend(&col, &Color::from_rgb(0.0, 0.0, 0.0)))
+            };
+
             let s = format_color(&col, cfg.output_format);
 
             if width < s.len() {
@@ -488,10 +497,9 @@ fn display_colors(colors: &[Color], cfg: &Config) {
                 width = cfg.term_width;
             }
 
-            let c = blend(&col, &cfg.background);
-            let (r, g, b, _) = c.rgba_u8();
+            let (r, g, b, _) = bg.rgba_u8();
 
-            let fg = if color_luminance(&c) < 0.3 {
+            let fg = if color_luminance(&bg) < 0.3 {
                 (255, 255, 255)
             } else {
                 (0, 0, 0)
@@ -509,7 +517,14 @@ fn display_colors(colors: &[Color], cfg: &Config) {
         println!();
     } else {
         for col in colors {
-            println!("{}", format_color(&col, cfg.output_format));
+            if cfg.is_bg {
+                println!(
+                    "{}",
+                    format_color(&blend(&col, &cfg.background), cfg.output_format)
+                );
+            } else {
+                println!("{}", format_color(&col, cfg.output_format));
+            }
         }
     }
 }
