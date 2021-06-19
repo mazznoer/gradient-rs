@@ -19,8 +19,6 @@ exclude = [
 [dependencies]
 atty = "0.2"
 clap = { version = "3.0.0-beta.2" }
-colored = "2.0.0"
-#colorgrad = { version = "0.4.0" }
 colorgrad = { git = "https://github.com/mazznoer/colorgrad-rs" }
 svg = "0.9.1"
 term_size = "0.3.2"

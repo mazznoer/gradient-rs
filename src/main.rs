@@ -1,7 +1,6 @@
 #![allow(clippy::many_single_char_names)]
 
 use clap::{AppSettings, ArgEnum, Clap};
-use colored::Colorize;
 use colorgrad::{Color, Gradient};
 use std::{ffi::OsStr, fs::File, io::BufReader, path::PathBuf, process::exit};
 
@@ -178,7 +177,7 @@ struct Opt {
 #[derive(Debug)]
 struct Config {
     is_stdout: bool,
-    is_bg: bool,
+    use_solid_bg: bool,
     background: Color,
     term_width: usize,
     width: usize,
@@ -188,7 +187,7 @@ struct Config {
 
 #[derive(Debug)]
 enum OutputMode {
-    Gradient(bool),
+    Gradient,
     ColorsN(usize),
     ColorsSample(Vec<f64>),
 }
@@ -205,10 +204,10 @@ fn main() {
 
     let (term_width, _) = term_size::dimensions().unwrap_or((80, 0));
 
-    let (base_color, ceckerboard_bg) = if let Some(col) = opt.background {
-        (col, false)
+    let (base_color, use_solid_bg) = if let Some(col) = opt.background {
+        (col, true)
     } else {
-        (Color::from_rgb(0.0, 0.0, 0.0), true)
+        (Color::from_rgb(0.0, 0.0, 0.0), false)
     };
 
     let ggr_bg_color = opt.ggr_bg.unwrap_or_else(|| Color::from_rgb(1.0, 1.0, 1.0));
@@ -216,7 +215,7 @@ fn main() {
 
     let cfg = Config {
         is_stdout: atty::is(atty::Stream::Stdout),
-        is_bg: !ceckerboard_bg,
+        use_solid_bg,
         background: base_color,
         term_width,
         width: opt.width.unwrap_or(term_width),
@@ -229,7 +228,7 @@ fn main() {
     } else if let Some(pos) = opt.sample {
         OutputMode::ColorsSample(pos)
     } else {
-        OutputMode::Gradient(ceckerboard_bg)
+        OutputMode::Gradient
     };
 
     if let Some(name) = opt.preset {
@@ -319,13 +318,13 @@ fn main() {
             if let Some(ext) = path.extension().and_then(OsStr::to_str) {
                 match ext.to_lowercase().as_ref() {
                     "ggr" => {
-                        println!("{}", &path.display().to_string().italic());
+                        println!("\x1B[3m{}\x1B[0m", &path.display());
                         let f = File::open(&path).unwrap();
 
                         match colorgrad::parse_ggr(BufReader::new(f), &ggr_fg_color, &ggr_bg_color)
                         {
                             Ok((grad, name)) => {
-                                println!("{} {}", "GIMP".bold(), name);
+                                println!("\x1B[1mGIMP\x1B[0m {}", name);
                                 handle_output(&grad, &output_mode, &cfg);
                             }
                             Err(err) => {
@@ -339,8 +338,8 @@ fn main() {
                             parse_svg(path.into_os_string().into_string().unwrap().as_ref());
 
                         if gradients.is_empty() {
-                            println!("{}", filename.italic());
-                            println!("{}", "No gradients.".red());
+                            println!("\x1B[3m{}\x1B[0m", filename);
+                            println!("\x1B[31mNo gradients.\x1B[39m");
                         }
 
                         for (grad, id) in gradients {
@@ -358,8 +357,8 @@ fn main() {
                                 ("".to_string(), false)
                             };
 
-                            println!("{}", filename.italic());
-                            println!("{} {}", "SVG".bold(), id);
+                            println!("\x1B[3m{}\x1B[0m", filename);
+                            println!("\x1B[1mSVG\x1B[0m {}", id);
                             handle_output(&grad, &output_mode, &cfg);
 
                             if stop {
@@ -382,13 +381,7 @@ fn parse_color(s: &str) -> Result<Color, colorgrad::ParseColorError> {
 
 fn handle_output(grad: &Gradient, mode: &OutputMode, cfg: &Config) {
     match mode {
-        OutputMode::Gradient(checkerboard) => {
-            if *checkerboard {
-                display_gradient_checkerboard(&grad, &cfg);
-            } else {
-                display_gradient(&grad, &cfg);
-            }
-        }
+        OutputMode::Gradient => display_gradient(&grad, &cfg),
         OutputMode::ColorsN(n) => display_colors_n(&grad, *n, &cfg),
         OutputMode::ColorsSample(ref pos) => display_colors_sample(&grad, &pos, &cfg),
     }
@@ -483,7 +476,7 @@ fn display_colors(colors: &[Color], cfg: &Config) {
         let mut width = cfg.term_width;
 
         for col in colors {
-            let (col, bg) = if cfg.is_bg {
+            let (col, bg) = if cfg.use_solid_bg {
                 let c = blend(&col, &cfg.background);
                 (c.clone(), c)
             } else {
@@ -505,7 +498,10 @@ fn display_colors(colors: &[Color], cfg: &Config) {
                 (0, 0, 0)
             };
 
-            print!("{}", &s.truecolor(fg.0, fg.1, fg.2).on_truecolor(r, g, b));
+            print!(
+                "\x1B[38;2;{};{};{};48;2;{};{};{}m{}\x1B[39;49m",
+                fg.0, fg.1, fg.2, r, g, b, &s
+            );
             width -= s.len();
 
             if width >= 1 {
@@ -517,7 +513,7 @@ fn display_colors(colors: &[Color], cfg: &Config) {
         println!();
     } else {
         for col in colors {
-            if cfg.is_bg {
+            if cfg.use_solid_bg {
                 println!(
                     "{}",
                     format_color(&blend(&col, &cfg.background), cfg.output_format)
@@ -545,39 +541,6 @@ fn display_gradient(grad: &Gradient, cfg: &Config) {
 
     let (dmin, dmax) = grad.domain();
     let w2 = (cfg.width * 2 - 1) as f64;
-
-    for _ in 0..cfg.height {
-        let mut i = 0;
-
-        for _ in 0..cfg.width {
-            let col1 = grad.at(remap(i as f64, 0.0, w2, dmin, dmax));
-            i += 1;
-
-            let col2 = grad.at(remap(i as f64, 0.0, w2, dmin, dmax));
-            i += 1;
-
-            let col1 = blend(&col1, &cfg.background).rgba_u8();
-            let col2 = blend(&col2, &cfg.background).rgba_u8();
-
-            print!(
-                "{}",
-                "▌"
-                    .truecolor(col1.0, col1.1, col1.2)
-                    .on_truecolor(col2.0, col2.1, col2.2)
-            );
-        }
-
-        println!();
-    }
-}
-
-fn display_gradient_checkerboard(grad: &Gradient, cfg: &Config) {
-    if !cfg.is_stdout {
-        return;
-    }
-
-    let (dmin, dmax) = grad.domain();
-    let w2 = (cfg.width * 2 - 1) as f64;
     let bg_0 = Color::from_rgb(0.05, 0.05, 0.05);
     let bg_1 = Color::from_rgb(0.20, 0.20, 0.20);
 
@@ -585,7 +548,9 @@ fn display_gradient_checkerboard(grad: &Gradient, cfg: &Config) {
         let mut i = 0;
 
         for x in 0..cfg.width {
-            let bg = if ((x / 2) & 1) ^ (y & 1) == 1 {
+            let bg = if cfg.use_solid_bg {
+                &cfg.background
+            } else if ((x / 2) & 1) ^ (y & 1) == 1 {
                 &bg_0
             } else {
                 &bg_1
@@ -601,14 +566,12 @@ fn display_gradient_checkerboard(grad: &Gradient, cfg: &Config) {
             let col2 = blend(&col2, &bg).rgba_u8();
 
             print!(
-                "{}",
-                "▌"
-                    .truecolor(col1.0, col1.1, col1.2)
-                    .on_truecolor(col2.0, col2.1, col2.2)
+                "\x1B[38;2;{};{};{};48;2;{};{};{}m▌",
+                col1.0, col1.1, col1.2, col2.0, col2.1, col2.2
             );
         }
 
-        println!();
+        println!("\x1B[39;49m");
     }
 }
 
