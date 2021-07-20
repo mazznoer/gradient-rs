@@ -7,6 +7,8 @@ use std::{ffi::OsStr, fs::File, io::BufReader, path::PathBuf, process::exit};
 mod svg_gradient;
 use svg_gradient::parse_svg;
 
+const LEFT_HALF_BLOCK: char = '\u{258C}';
+
 #[derive(Debug, ArgEnum)]
 enum BlendMode {
     Rgb,
@@ -94,17 +96,17 @@ REPOSITORY: https://github.com/mazznoer/gradient-rs
 ";
 
 #[derive(Debug, Clap)]
-#[clap(name = "gradient", version, about, after_long_help = EXTRA_HELP, setting = AppSettings::ArgRequiredElseHelp)]
+#[clap(name = "gradient", author, version, about, after_long_help = EXTRA_HELP, setting = AppSettings::ArgRequiredElseHelp)]
 struct Opt {
-    /// List all preset gradient names
+    /// Lists all available preset gradient names
     #[clap(short = 'l', long, help_heading = Some("PRESET GRADIENT"))]
-    list_preset: bool,
+    list_presets: bool,
 
-    /// Preset gradient
+    /// Use the preset gradient
     #[clap(short = 'p', long, value_name = "NAME", help_heading = Some("PRESET GRADIENT"))]
     preset: Option<String>,
 
-    /// Custom gradient
+    /// Create custom gradient with the specified colors
     #[clap(short = 'c', long, parse(try_from_str = parse_color), multiple = true, min_values = 1, value_name = "COLOR", conflicts_with = "preset", help_heading = Some("CUSTOM GRADIENT"))]
     custom: Option<Vec<Color>>,
 
@@ -121,24 +123,25 @@ struct Opt {
     interpolation: Option<Interpolation>,
 
     /// GGR background color [default: white]
-    #[clap(long, parse(try_from_str = parse_color), value_name = "COLOR")]
+    #[clap(long, parse(try_from_str = parse_color), value_name = "COLOR", help_heading = Some("GRADIENT FILE"))]
     ggr_bg: Option<Color>,
 
     /// GGR foreground color [default: black]
-    #[clap(long, parse(try_from_str = parse_color), value_name = "COLOR")]
+    #[clap(long, parse(try_from_str = parse_color), value_name = "COLOR", help_heading = Some("GRADIENT FILE"))]
     ggr_fg: Option<Color>,
 
     /// Pick SVG gradient by ID
-    #[clap(long, value_name = "ID")]
+    #[clap(long, value_name = "ID", help_heading = Some("GRADIENT FILE"))]
     svg_id: Option<String>,
 
-    /// Gradient file(s)
+    /// Read gradient from SVG or GIMP gradient (ggr) file(s)
     #[clap(
         short = 'f',
         long,
         min_values = 1,
         value_name = "FILE",
-        parse(from_os_str)
+        parse(from_os_str),
+        help_heading = Some("GRADIENT FILE")
     )]
     file: Option<Vec<PathBuf>>,
 
@@ -155,7 +158,7 @@ struct Opt {
     background: Option<Color>,
 
     /// Get N colors evenly spaced across gradient
-    #[clap(short = 't', long, value_name = "NUM")]
+    #[clap(short = 't', long, value_name = "NUM", conflicts_with = "sample")]
     take: Option<usize>,
 
     /// Get color(s) at specific position
@@ -164,8 +167,7 @@ struct Opt {
         long,
         value_name = "FLOAT",
         multiple = true,
-        min_values = 1,
-        conflicts_with = "take"
+        min_values = 1
     )]
     sample: Option<Vec<f64>>,
 
@@ -195,19 +197,17 @@ enum OutputMode {
 fn main() {
     let opt = Opt::parse();
 
-    if opt.list_preset {
+    if opt.list_presets {
         for name in &PRESET_NAMES {
             println!("{}", name);
         }
         exit(0);
     }
 
-    let (term_width, _) = term_size::dimensions().unwrap_or((80, 0));
-
-    let (base_color, use_solid_bg) = if let Some(col) = opt.background {
-        (col, true)
+    let term_width = if let Some((terminal_size::Width(w), _)) = terminal_size::terminal_size() {
+        w as usize
     } else {
-        (Color::from_rgb(0.0, 0.0, 0.0), false)
+        80
     };
 
     let ggr_bg_color = opt.ggr_bg.unwrap_or_else(|| Color::from_rgb(1.0, 1.0, 1.0));
@@ -215,8 +215,10 @@ fn main() {
 
     let cfg = Config {
         is_stdout: atty::is(atty::Stream::Stdout),
-        use_solid_bg,
-        background: base_color,
+        use_solid_bg: opt.background.is_some(),
+        background: opt
+            .background
+            .unwrap_or_else(|| Color::from_rgb(0.0, 0.0, 0.0)),
         term_width,
         width: opt.width.unwrap_or(term_width),
         height: opt.height.unwrap_or(2),
@@ -318,17 +320,25 @@ fn main() {
             if let Some(ext) = path.extension().and_then(OsStr::to_str) {
                 match ext.to_lowercase().as_ref() {
                     "ggr" => {
-                        println!("\x1B[3m{}\x1B[0m", &path.display());
+                        if cfg.is_stdout {
+                            print!("{}", &path.display());
+                        }
+
                         let f = File::open(&path).unwrap();
 
                         match colorgrad::parse_ggr(BufReader::new(f), &ggr_fg_color, &ggr_bg_color)
                         {
                             Ok((grad, name)) => {
-                                println!("\x1B[1mGIMP\x1B[0m {}", name);
+                                if cfg.is_stdout {
+                                    println!(" \x1B[1m{}\x1B[0m", name);
+                                }
+
                                 handle_output(&grad, &output_mode, &cfg);
                             }
                             Err(err) => {
-                                println!("{}", err);
+                                if cfg.is_stdout {
+                                    println!("\n  \x1B[31m{}\x1B[39m", err);
+                                }
                             }
                         }
                     }
@@ -337,9 +347,9 @@ fn main() {
                         let gradients =
                             parse_svg(path.into_os_string().into_string().unwrap().as_ref());
 
-                        if gradients.is_empty() {
-                            println!("\x1B[3m{}\x1B[0m", filename);
-                            println!("\x1B[31mNo gradients.\x1B[39m");
+                        if gradients.is_empty() && cfg.is_stdout {
+                            println!("{}", filename);
+                            println!("  \x1B[31mNo gradients.\x1B[39m");
                         }
 
                         for (grad, id) in gradients {
@@ -357,8 +367,10 @@ fn main() {
                                 ("".to_string(), false)
                             };
 
-                            println!("\x1B[3m{}\x1B[0m", filename);
-                            println!("\x1B[1mSVG\x1B[0m {}", id);
+                            if cfg.is_stdout {
+                                println!("{} \x1B[1m{}\x1B[0m", filename, id);
+                            }
+
                             handle_output(&grad, &output_mode, &cfg);
 
                             if stop {
@@ -566,8 +578,8 @@ fn display_gradient(grad: &Gradient, cfg: &Config) {
             let col2 = blend(&col2, &bg).rgba_u8();
 
             print!(
-                "\x1B[38;2;{};{};{};48;2;{};{};{}m▌",
-                col1.0, col1.1, col1.2, col2.0, col2.1, col2.2
+                "\x1B[38;2;{};{};{};48;2;{};{};{}m{}",
+                col1.0, col1.1, col1.2, col2.0, col2.1, col2.2, LEFT_HALF_BLOCK
             );
         }
 

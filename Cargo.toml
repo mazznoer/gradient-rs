@@ -18,8 +18,8 @@ exclude = [
 
 [dependencies]
 atty = "0.2"
-clap = { version = "3.0.0-beta.2" }
+clap = { version = "3.0.0-beta.2", features = ["wrap_help"] }
 colorgrad = { git = "https://github.com/mazznoer/colorgrad-rs" }
 svg = "0.9.1"
-term_size = "0.3.2"
+terminal_size = "0.1.17"
 
