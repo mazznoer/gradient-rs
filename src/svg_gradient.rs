@@ -130,24 +130,9 @@ pub(crate) fn parse_svg(path: &str) -> Vec<(Gradient, Option<String>)> {
                     None
                 };
 
-                let (offset, color) = match (offset, color) {
-                    (Some(offset), Some(color)) => {
-                        // Both offset and color specified
-                        (offset, color)
-                    }
-                    (Some(offset), None) => {
-                        // Just offset, use black
-                        (offset, Color::from_rgb(0.0, 0.0, 0.0))
-                    }
-                    (None, Some(color)) => {
-                        // Just color, use previous pos
-                        (prev_pos, color)
-                    }
-                    (None, None) => {
-                        // Without offset & color
-                        (prev_pos, Color::from_rgb(0.0, 0.0, 0.0))
-                    }
-                };
+                let color = color.unwrap_or_else(|| Color::from_rgb(0.0, 0.0, 0.0));
+
+                let offset = offset.unwrap_or(prev_pos);
 
                 let color = if let Some(opacity) = opacity {
                     let (r, g, b, _) = color.rgba();
