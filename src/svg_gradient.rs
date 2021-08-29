@@ -3,7 +3,7 @@ use svg::node::element::tag::{LinearGradient, RadialGradient, Stop, Type};
 use svg::parser::Event;
 
 fn parse_percent_or_float(s: &str) -> Option<f64> {
-    if let Some(s) = s.strip_suffix("%") {
+    if let Some(s) = s.strip_suffix('%') {
         if let Ok(t) = s.parse::<f64>() {
             return Some(t / 100.0);
         }
@@ -55,11 +55,8 @@ pub(crate) fn parse_svg(path: &str) -> Vec<(Gradient, Option<String>)> {
             Event::Tag(LinearGradient, t, attributes)
             | Event::Tag(RadialGradient, t, attributes) => match t {
                 Type::Start => {
-                    let id = if let Some(val) = attributes.get("id") {
-                        Some(val.to_string())
-                    } else {
-                        None
-                    };
+                    let id = attributes.get("id").map(|v| v.to_string());
+
                     res.push(SvgGradient {
                         id,
                         colors: Vec::new(),
@@ -111,21 +108,13 @@ pub(crate) fn parse_svg(path: &str) -> Vec<(Gradient, Option<String>)> {
                 };
 
                 let opacity = if let Some(op) = opacity {
-                    if let Some(t) = parse_percent_or_float(op) {
-                        Some(t)
-                    } else {
-                        None
-                    }
+                    parse_percent_or_float(op)
                 } else {
                     None
                 };
 
                 let offset = if let Some(pos) = attributes.get("offset") {
-                    if let Some(pos) = parse_percent_or_float(pos) {
-                        Some(pos)
-                    } else {
-                        None
-                    }
+                    parse_percent_or_float(pos)
                 } else {
                     None
                 };
@@ -141,15 +130,14 @@ pub(crate) fn parse_svg(path: &str) -> Vec<(Gradient, Option<String>)> {
                     color
                 };
 
-                let position = if offset < prev_pos {
-                    prev_pos
+                prev_pos = if offset.is_finite() {
+                    offset.max(prev_pos)
                 } else {
-                    prev_pos = if offset.is_finite() { offset } else { 0.0 };
-                    prev_pos
+                    0.0
                 };
 
                 res[index].colors.push(color);
-                res[index].pos.push(position);
+                res[index].pos.push(prev_pos);
             }
             _ => {}
         }

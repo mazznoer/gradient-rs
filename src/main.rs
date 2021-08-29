@@ -393,9 +393,9 @@ fn parse_color(s: &str) -> Result<Color, colorgrad::ParseColorError> {
 
 fn handle_output(grad: &Gradient, mode: &OutputMode, cfg: &Config) {
     match mode {
-        OutputMode::Gradient => display_gradient(&grad, &cfg),
-        OutputMode::ColorsN(n) => display_colors_n(&grad, *n, &cfg),
-        OutputMode::ColorsSample(ref pos) => display_colors_sample(&grad, &pos, &cfg),
+        OutputMode::Gradient => display_gradient(grad, cfg),
+        OutputMode::ColorsN(n) => display_colors_n(grad, *n, cfg),
+        OutputMode::ColorsSample(ref pos) => display_colors_sample(grad, pos, cfg),
     }
 }
 
@@ -489,10 +489,10 @@ fn display_colors(colors: &[Color], cfg: &Config) {
 
         for col in colors {
             let (col, bg) = if cfg.use_solid_bg {
-                let c = blend(&col, &cfg.background);
+                let c = blend(col, &cfg.background);
                 (c.clone(), c)
             } else {
-                (col.clone(), blend(&col, &Color::from_rgb(0.0, 0.0, 0.0)))
+                (col.clone(), blend(col, &Color::from_rgb(0.0, 0.0, 0.0)))
             };
 
             let s = format_color(&col, cfg.output_format);
@@ -528,22 +528,22 @@ fn display_colors(colors: &[Color], cfg: &Config) {
             if cfg.use_solid_bg {
                 println!(
                     "{}",
-                    format_color(&blend(&col, &cfg.background), cfg.output_format)
+                    format_color(&blend(col, &cfg.background), cfg.output_format)
                 );
             } else {
-                println!("{}", format_color(&col, cfg.output_format));
+                println!("{}", format_color(col, cfg.output_format));
             }
         }
     }
 }
 
 fn display_colors_n(grad: &Gradient, n: usize, cfg: &Config) {
-    display_colors(&grad.colors(n), &cfg);
+    display_colors(&grad.colors(n), cfg);
 }
 
 fn display_colors_sample(grad: &Gradient, positions: &[f64], cfg: &Config) {
     let colors = positions.iter().map(|t| grad.at(*t)).collect::<Vec<_>>();
-    display_colors(&colors, &cfg);
+    display_colors(&colors, cfg);
 }
 
 fn display_gradient(grad: &Gradient, cfg: &Config) {
@@ -574,8 +574,8 @@ fn display_gradient(grad: &Gradient, cfg: &Config) {
             let col2 = grad.at(remap(i as f64, 0.0, w2, dmin, dmax));
             i += 1;
 
-            let col1 = blend(&col1, &bg).rgba_u8();
-            let col2 = blend(&col2, &bg).rgba_u8();
+            let col1 = blend(&col1, bg).rgba_u8();
+            let col2 = blend(&col2, bg).rgba_u8();
 
             print!(
                 "\x1B[38;2;{};{};{};48;2;{};{};{}m{}",
