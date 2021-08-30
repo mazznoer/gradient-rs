@@ -30,31 +30,33 @@ gradient [OPTIONS]
 
 ### Options:
 
-* `-W`, `--width` : Gradient display width (default: terminal width)
-* `-H`, `--height` : Gradient display height (default: 2)
-* `-b`, `--background` : Background color (default: checkerboard)
-* `-s`, `--sample` : Get color(s) at specific position
-* `-t`, `--take` : Get N colors evenly spaced across gradient
-* `-o`, `--format` : Output color format (default: hex) [hex, rgb, rgb255, hsl, hsv, hwb]
+* `-W`, `--width` `<NUM>` : Gradient display width (default: terminal width)
+* `-H`, `--height` `<NUM>` : Gradient display height (default: 2)
+* `-b`, `--background` `<COLOR>` : Background color (default: checkerboard)
+* `-s`, `--sample` `<FLOAT>`... : Get color(s) at specific position
+* `-t`, `--take` `<NUM>` : Get N colors evenly spaced across gradient
+* `-o`, `--format` `<FORMAT>` : Output color format (default: hex) [hex, rgb, rgb255, hsl, hsv, hwb]
 
 ### Preset gradient
 
-* `-p`, `--preset` : Using the preset gradient
+* `-p`, `--preset` `<NAME>` : Using the preset gradient
 * `-l`, `--list-presets` : Lists all available preset gradients
 
 ### Custom gradient
 
-* `-c`, `--custom` : Create custom gradient
-* `-m`, `--blend-mode` : Custom gradient blending mode (default: oklab) [rgb, linear-rgb, hsv, oklab]
-* `-i`, `--interpolation` : Custom gradient interpolation mode (default: catmull-rom) [linear, basis, catmull-rom]
-* `-P`, `--position` : Custom gradient color position
+* `-c`, `--custom` `<COLOR>`... : Create custom gradient
+* `-m`, `--blend-mode` `<MODE>` : Custom gradient blending mode (default: oklab) [rgb, linear-rgb, hsv, oklab]
+* `-i`, `--interpolation` `<MODE>` : Custom gradient interpolation mode (default: catmull-rom) [linear, basis, catmull-rom]
+* `-P`, `--position` `<FLOAT>`... : Custom gradient color position
 
 ### Gradient file
 
-* `-f`, `--file` : Read gradient from SVG or GIMP gradient (ggr) file(s)
-* `--ggr-fg` : GGR foreground color (default: black)
-* `--ggr-bg` : GGR background color (default: white)
-* `--svg-id` : Pick SVG gradient by ID
+* `-f`, `--file` `<FILE>`... : Read gradient from SVG or GIMP gradient (ggr) file(s)
+* `--ggr-fg` `<COLOR>` : GGR foreground color (default: black)
+* `--ggr-bg` `<COLOR>` : GGR background color (default: white)
+* `--svg-id` `<ID>` : Pick SVG gradient by ID
+
+`COLOR` can be specified using [CSS color format](https://www.w3.org/TR/css-color-4/).
 
 ## Usage Examples
 
@@ -76,5 +78,5 @@ Create custom gradient. Colors can be specified using CSS color format.
 gradient -c gold ff4700 'rgb(90,230,170)' 'hsl(340,50%,50%)' 'hsv(270,60%,70%)' 'hwb(230,50%,0%)'
 ```
 
-TODO add more examples
+**TODO** add more examples
 

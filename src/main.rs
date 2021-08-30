@@ -75,7 +75,10 @@ const PRESET_NAMES: [&str; 38] = [
     "yl-or-rd",
 ];
 
-const EXTRA_HELP: &str = "EXAMPLES:
+const EXTRA_HELP: &str =
+    "COLOR can be specified using CSS color format <https://www.w3.org/TR/css-color-4/>.";
+
+const EXTRA_LONG_HELP: &str = "EXAMPLES:
 Display preset gradient
 
     gradient -p rainbow
@@ -92,11 +95,11 @@ Create custom gradient & get 20 colors
 
     gradient -c ff00ff 'rgb(50,200,70)' 'hwb(195,0,0.5)' -t 20
 
-REPOSITORY: https://github.com/mazznoer/gradient-rs
+REPOSITORY: <https://github.com/mazznoer/gradient-rs>
 ";
 
 #[derive(Debug, Clap)]
-#[clap(name = "gradient", author, version, about, after_long_help = EXTRA_HELP, setting = AppSettings::ArgRequiredElseHelp)]
+#[clap(name = "gradient", author, version, about, after_help = EXTRA_HELP, after_long_help = EXTRA_LONG_HELP, setting = AppSettings::ArgRequiredElseHelp)]
 struct Opt {
     /// Lists all available preset gradient names
     #[clap(short = 'l', long, help_heading = Some("PRESET GRADIENT"))]
