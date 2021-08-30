@@ -220,8 +220,8 @@ fn main() {
             .background
             .unwrap_or_else(|| Color::from_rgb(0.0, 0.0, 0.0)),
         term_width,
-        width: opt.width.unwrap_or(term_width),
-        height: opt.height.unwrap_or(2),
+        width: opt.width.unwrap_or(term_width).max(10).min(term_width),
+        height: opt.height.unwrap_or(2).max(1).min(50),
         output_format: opt.format.unwrap_or(OutputColor::Hex),
     };
 
