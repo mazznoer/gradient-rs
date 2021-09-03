@@ -2,9 +2,9 @@
 
 [![Build Status](https://github.com/mazznoer/gradient-rs/workflows/Rust/badge.svg)](https://github.com/mazznoer/gradient-rs/actions)
 
-A command-line tool for playing with color gradient.
+A command-line tool for playing with color gradients.
 
-![gradient-cli-tool](docs/images/gradient-cli-1.png)
+![gradient-cli-tool](docs/images/gradient-cli-2.png)
 
 ## Features
 
@@ -72,7 +72,7 @@ Display all gradients from svg file.
 gradient -f file.svg
 ```
 
-Create custom gradient. Colors can be specified using CSS color format.
+Create custom gradient.
 
 ```shell
 gradient -c gold ff4700 'rgb(90,230,170)' 'hsl(340,50%,50%)' 'hsv(270,60%,70%)' 'hwb(230,50%,0%)'
