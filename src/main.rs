@@ -110,11 +110,11 @@ struct Opt {
     preset: Option<String>,
 
     /// Create custom gradient with the specified colors
-    #[clap(short = 'c', long, parse(try_from_str = parse_color), multiple = true, min_values = 1, value_name = "COLOR", conflicts_with = "preset", help_heading = Some("CUSTOM GRADIENT"))]
+    #[clap(short = 'c', long, parse(try_from_str = parse_color), multiple_values = true, multiple_occurrences = true, min_values = 1, value_name = "COLOR", conflicts_with = "preset", help_heading = Some("CUSTOM GRADIENT"))]
     custom: Option<Vec<Color>>,
 
     /// Custom gradient color position
-    #[clap(short = 'P', long, multiple = true, min_values = 2, value_name = "FLOAT", help_heading = Some("CUSTOM GRADIENT"))]
+    #[clap(short = 'P', long, multiple_values = true, multiple_occurrences = true, min_values = 2, value_name = "FLOAT", help_heading = Some("CUSTOM GRADIENT"))]
     position: Option<Vec<f64>>,
 
     /// Custom gradient blending mode [default: oklab]
@@ -169,7 +169,8 @@ struct Opt {
         short = 's',
         long,
         value_name = "FLOAT",
-        multiple = true,
+        multiple_values = true,
+        multiple_occurrences = true,
         min_values = 1
     )]
     sample: Option<Vec<f64>>,
