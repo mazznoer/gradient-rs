@@ -160,6 +160,10 @@ struct Opt {
     #[clap(short = 'b', long, parse(try_from_str = parse_color), value_name = "COLOR")]
     background: Option<Color>,
 
+    /// Checkerboard color
+    #[clap(long, number_of_values = 2, parse(try_from_str = parse_color), value_name = "COLOR")]
+    cb_color: Option<Vec<Color>>,
+
     /// Get N colors evenly spaced across gradient
     #[clap(short = 't', long, value_name = "NUM", conflicts_with = "sample")]
     take: Option<usize>,
@@ -185,6 +189,7 @@ struct Config {
     is_stdout: bool,
     use_solid_bg: bool,
     background: Color,
+    cb_color: Vec<Color>,
     term_width: usize,
     width: usize,
     height: usize,
@@ -223,6 +228,12 @@ fn main() {
         background: opt
             .background
             .unwrap_or_else(|| Color::from_rgb(0.0, 0.0, 0.0)),
+        cb_color: opt.cb_color.unwrap_or_else(|| {
+            vec![
+                Color::from_rgb(0.05, 0.05, 0.05),
+                Color::from_rgb(0.20, 0.20, 0.20),
+            ]
+        }),
         term_width,
         width: opt.width.unwrap_or(term_width).max(10).min(term_width),
         height: opt.height.unwrap_or(2).max(1).min(50),
@@ -557,8 +568,8 @@ fn display_gradient(grad: &Gradient, cfg: &Config) {
 
     let (dmin, dmax) = grad.domain();
     let w2 = (cfg.width * 2 - 1) as f64;
-    let bg_0 = Color::from_rgb(0.05, 0.05, 0.05);
-    let bg_1 = Color::from_rgb(0.20, 0.20, 0.20);
+    let bg_0 = &cfg.cb_color[0];
+    let bg_1 = &cfg.cb_color[1];
 
     for y in 0..cfg.height {
         let mut i = 0;
@@ -566,10 +577,10 @@ fn display_gradient(grad: &Gradient, cfg: &Config) {
         for x in 0..cfg.width {
             let bg = if cfg.use_solid_bg {
                 &cfg.background
-            } else if ((x / 2) & 1) ^ (y & 1) == 1 {
-                &bg_0
+            } else if ((x / 2) & 1) ^ (y & 1) == 0 {
+                bg_0
             } else {
-                &bg_1
+                bg_1
             };
 
             let col1 = grad.at(remap(i as f64, 0.0, w2, dmin, dmax));
