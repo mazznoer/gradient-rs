@@ -99,7 +99,8 @@ REPOSITORY: <https://github.com/mazznoer/gradient-rs>
 ";
 
 #[derive(Debug, Clap)]
-#[clap(name = "gradient", author, version, about, after_help = EXTRA_HELP, after_long_help = EXTRA_LONG_HELP, setting = AppSettings::ArgRequiredElseHelp)]
+#[clap(name = "gradient", author, version, about, after_help = EXTRA_HELP, after_long_help = EXTRA_LONG_HELP)]
+#[clap(setting = AppSettings::ColoredHelp, setting = AppSettings::ArgRequiredElseHelp)]
 struct Opt {
     /// Lists all available preset gradient names
     #[clap(short = 'l', long, help_heading = Some("PRESET GRADIENT"))]
