@@ -183,6 +183,10 @@ struct Opt {
     /// Output color format
     #[clap(short = 'o', long, arg_enum, value_name = "FORMAT")]
     format: Option<OutputColor>,
+
+    /// Print colors from --take or --sample, as array
+    #[clap(short = 'a', long)]
+    array: bool,
 }
 
 #[derive(Debug)]
@@ -195,6 +199,7 @@ struct Config {
     width: usize,
     height: usize,
     output_format: OutputColor,
+    array: bool,
 }
 
 #[derive(Debug)]
@@ -239,6 +244,7 @@ fn main() {
         width: opt.width.unwrap_or(term_width).max(10).min(term_width),
         height: opt.height.unwrap_or(2).max(1).min(50),
         output_format: opt.format.unwrap_or(OutputColor::Hex),
+        array: opt.array,
     };
 
     let output_mode = if let Some(n) = opt.take {
@@ -500,6 +506,21 @@ fn format_color(col: &Color, format: OutputColor) -> String {
 }
 
 fn display_colors(colors: &[Color], cfg: &Config) {
+    if cfg.array {
+        let mut cols = Vec::new();
+
+        for col in colors {
+            cols.push(if cfg.use_solid_bg {
+                format_color(&blend(col, &cfg.background), cfg.output_format)
+            } else {
+                format_color(col, cfg.output_format)
+            });
+        }
+
+        println!("{:?}", cols);
+        return;
+    }
+
     if cfg.is_stdout {
         let mut width = cfg.term_width;
 
