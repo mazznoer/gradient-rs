@@ -202,7 +202,7 @@ struct Config {
     array: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum OutputMode {
     Gradient,
     ColorsN(usize),
@@ -220,9 +220,9 @@ fn main() {
     }
 
     let term_width = if let Some((terminal_size::Width(w), _)) = terminal_size::terminal_size() {
-        w as usize
+        Some(w as usize)
     } else {
-        80
+        None
     };
 
     let ggr_bg_color = opt.ggr_bg.unwrap_or_else(|| Color::from_rgb(1.0, 1.0, 1.0));
@@ -240,8 +240,13 @@ fn main() {
                 Color::from_rgb(0.20, 0.20, 0.20),
             ]
         }),
-        term_width,
-        width: opt.width.unwrap_or(term_width).max(10).min(term_width),
+        term_width: term_width.unwrap_or(80),
+        width: match opt.width {
+            Some(w) => w,
+            None => term_width.unwrap_or(80),
+        }
+        .max(10)
+        .min(term_width.unwrap_or(1000)),
         height: opt.height.unwrap_or(2).max(1).min(50),
         output_format: opt.format.unwrap_or(OutputColor::Hex),
         array: opt.array,
@@ -342,7 +347,7 @@ fn main() {
             if let Some(ext) = path.extension().and_then(OsStr::to_str) {
                 match ext.to_lowercase().as_ref() {
                     "ggr" => {
-                        if cfg.is_stdout {
+                        if cfg.is_stdout || (output_mode == OutputMode::Gradient) {
                             print!("{}", &path.display());
                         }
 
@@ -351,14 +356,14 @@ fn main() {
                         match colorgrad::parse_ggr(BufReader::new(f), &ggr_fg_color, &ggr_bg_color)
                         {
                             Ok((grad, name)) => {
-                                if cfg.is_stdout {
+                                if cfg.is_stdout || (output_mode == OutputMode::Gradient) {
                                     println!(" \x1B[1m{}\x1B[0m", name);
                                 }
 
                                 handle_output(&grad, &output_mode, &cfg);
                             }
                             Err(err) => {
-                                if cfg.is_stdout {
+                                if cfg.is_stdout || (output_mode == OutputMode::Gradient) {
                                     println!("\n  \x1B[31m{}\x1B[39m", err);
                                 }
                             }
@@ -369,7 +374,9 @@ fn main() {
                         let gradients =
                             parse_svg(path.into_os_string().into_string().unwrap().as_ref());
 
-                        if gradients.is_empty() && cfg.is_stdout {
+                        if (cfg.is_stdout || (output_mode == OutputMode::Gradient))
+                            && gradients.is_empty()
+                        {
                             println!("{}", filename);
                             println!("  \x1B[31mNo gradients.\x1B[39m");
                         }
@@ -389,7 +396,7 @@ fn main() {
                                 ("".to_string(), false)
                             };
 
-                            if cfg.is_stdout {
+                            if cfg.is_stdout || (output_mode == OutputMode::Gradient) {
                                 println!("{} \x1B[1m{}\x1B[0m", filename, id);
                             }
 
@@ -584,10 +591,6 @@ fn display_colors_sample(grad: &Gradient, positions: &[f64], cfg: &Config) {
 }
 
 fn display_gradient(grad: &Gradient, cfg: &Config) {
-    if !cfg.is_stdout {
-        return;
-    }
-
     let (dmin, dmax) = grad.domain();
     let w2 = (cfg.width * 2 - 1) as f64;
     let bg_0 = &cfg.cb_color[0];
