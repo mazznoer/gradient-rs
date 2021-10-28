@@ -2,12 +2,11 @@
 
 use clap::{AppSettings, ArgEnum, Clap};
 use colorgrad::{Color, Gradient};
-use std::{ffi::OsStr, fs::File, io::BufReader, path::PathBuf, process::exit};
+use std::io::{self, BufReader, Write};
+use std::{ffi::OsStr, fs::File, path::PathBuf, process::exit};
 
 mod svg_gradient;
 use svg_gradient::parse_svg;
-
-const LEFT_HALF_BLOCK: char = '\u{258C}';
 
 #[derive(Debug, ArgEnum)]
 enum BlendMode {
@@ -199,69 +198,60 @@ struct Config {
     width: usize,
     height: usize,
     output_format: OutputColor,
-    array: bool,
 }
 
 #[derive(Debug, PartialEq)]
 enum OutputMode {
     Gradient,
-    ColorsN(usize),
-    ColorsSample(Vec<f64>),
+    ColorsN,
+    ColorsSample,
 }
 
-fn main() {
-    let opt = Opt::parse();
+struct GradientApp {
+    opt: Opt,
+    cfg: Config,
+    stdout: io::Stdout,
+    output_mode: OutputMode,
+}
 
-    if opt.list_presets {
-        for name in &PRESET_NAMES {
-            println!("{}", name);
+impl GradientApp {
+    fn run(&mut self) -> io::Result<i32> {
+        if self.opt.list_presets {
+            for name in &PRESET_NAMES {
+                writeln!(self.stdout, "{}", name)?;
+            }
+
+            return Ok(0);
         }
-        exit(0);
+
+        if self.opt.preset.is_some() {
+            self.preset_gradient()?;
+            return Ok(0);
+        }
+
+        if self.opt.custom.is_some() {
+            self.custom_gradient()?;
+            return Ok(0);
+        }
+
+        if self.opt.file.is_some() {
+            self.file_gradient()?;
+            return Ok(0);
+        }
+
+        Ok(0)
     }
 
-    let term_width = if let Some((terminal_size::Width(w), _)) = terminal_size::terminal_size() {
-        Some(w as usize)
-    } else {
-        None
-    };
-
-    let ggr_bg_color = opt.ggr_bg.unwrap_or_else(|| Color::from_rgb(1.0, 1.0, 1.0));
-    let ggr_fg_color = opt.ggr_fg.unwrap_or_else(|| Color::from_rgb(0.0, 0.0, 0.0));
-
-    let cfg = Config {
-        is_stdout: atty::is(atty::Stream::Stdout),
-        use_solid_bg: opt.background.is_some(),
-        background: opt
-            .background
-            .unwrap_or_else(|| Color::from_rgb(0.0, 0.0, 0.0)),
-        cb_color: opt.cb_color.unwrap_or_else(|| {
-            vec![
-                Color::from_rgb(0.05, 0.05, 0.05),
-                Color::from_rgb(0.20, 0.20, 0.20),
-            ]
-        }),
-        term_width: term_width.unwrap_or(80),
-        width: match opt.width {
-            Some(w) => w,
-            None => term_width.unwrap_or(80),
-        }
-        .max(10)
-        .min(term_width.unwrap_or(1000)),
-        height: opt.height.unwrap_or(2).max(1).min(50),
-        output_format: opt.format.unwrap_or(OutputColor::Hex),
-        array: opt.array,
-    };
-
-    let output_mode = if let Some(n) = opt.take {
-        OutputMode::ColorsN(n)
-    } else if let Some(pos) = opt.sample {
-        OutputMode::ColorsSample(pos)
-    } else {
-        OutputMode::Gradient
-    };
-
-    if let Some(name) = opt.preset {
-        let grad = match name.to_lowercase().replace("-", "_").as_ref() {
+    fn preset_gradient(&mut self) -> io::Result<i32> {
+        let grad = match self
+            .opt
+            .preset
+            .as_ref()
+            .unwrap()
+            .to_lowercase()
+            .replace("-", "_")
+            .as_ref()
+        {
             "blues" => colorgrad::blues(),
             "br_bg" => colorgrad::br_bg(),
             "bu_gn" => colorgrad::bu_gn(),
@@ -301,54 +291,69 @@ fn main() {
             "yl_or_br" => colorgrad::yl_or_br(),
             "yl_or_rd" => colorgrad::yl_or_rd(),
             _ => {
-                eprintln!("Error: Invalid preset gradient name. Use -l flag to list all preset gradient names.");
-                exit(1);
+                writeln!(io::stderr(), "Error: Invalid preset gradient name. Use -l flag to list all preset gradient names.")?;
+                return Ok(1);
             }
         };
 
-        handle_output(&grad, &output_mode, &cfg);
+        self.handle_output(&grad)?;
+        Ok(0)
     }
 
-    if let Some(colors) = opt.custom {
-        let pos = opt.position.unwrap_or_else(|| vec![0.0, 1.0]);
+    fn custom_gradient(&mut self) -> io::Result<i32> {
+        let mut gb = colorgrad::CustomGradient::new();
 
-        let blend_mode = match opt.blend_mode {
+        gb.colors(self.opt.custom.as_ref().unwrap());
+
+        if let Some(ref pos) = self.opt.position {
+            gb.domain(pos);
+        }
+
+        gb.mode(match self.opt.blend_mode {
             Some(BlendMode::Rgb) => colorgrad::BlendMode::Rgb,
             Some(BlendMode::LinearRgb) => colorgrad::BlendMode::LinearRgb,
             Some(BlendMode::Hsv) => colorgrad::BlendMode::Hsv,
             _ => colorgrad::BlendMode::Oklab,
-        };
+        });
 
-        let interpolation = match opt.interpolation {
+        gb.interpolation(match self.opt.interpolation {
             Some(Interpolation::Linear) => colorgrad::Interpolation::Linear,
             Some(Interpolation::Basis) => colorgrad::Interpolation::Basis,
             _ => colorgrad::Interpolation::CatmullRom,
-        };
+        });
 
-        match colorgrad::CustomGradient::new()
-            .colors(&colors)
-            .domain(&pos)
-            .mode(blend_mode)
-            .interpolation(interpolation)
-            .build()
-        {
+        match gb.build() {
             Ok(grad) => {
-                handle_output(&grad, &output_mode, &cfg);
+                self.handle_output(&grad)?;
+                Ok(0)
             }
+
             Err(err) => {
-                eprintln!("Custom gradient error: {}", err);
-                exit(1);
+                writeln!(io::stderr(), "Custom gradient error: {}", err)?;
+                Ok(1)
             }
         }
     }
 
-    if let Some(files) = opt.file {
-        for path in files {
+    fn file_gradient(&mut self) -> io::Result<i32> {
+        let ggr_bg_color = if let Some(ref c) = self.opt.ggr_bg {
+            c.clone()
+        } else {
+            Color::from_rgb(1.0, 1.0, 1.0)
+        };
+
+        let ggr_fg_color = if let Some(ref c) = self.opt.ggr_fg {
+            c.clone()
+        } else {
+            Color::from_rgb(0.0, 0.0, 0.0)
+        };
+
+        for path in self.opt.file.as_ref().unwrap().clone() {
             if let Some(ext) = path.extension().and_then(OsStr::to_str) {
                 match ext.to_lowercase().as_ref() {
                     "ggr" => {
-                        if cfg.is_stdout || (output_mode == OutputMode::Gradient) {
-                            print!("{}", &path.display());
+                        if self.cfg.is_stdout || (self.output_mode == OutputMode::Gradient) {
+                            write!(self.stdout, "{}", &path.display())?;
                         }
 
                         let f = File::open(&path).unwrap();
@@ -356,34 +361,38 @@ fn main() {
                         match colorgrad::parse_ggr(BufReader::new(f), &ggr_fg_color, &ggr_bg_color)
                         {
                             Ok((grad, name)) => {
-                                if cfg.is_stdout || (output_mode == OutputMode::Gradient) {
-                                    println!(" \x1B[1m{}\x1B[0m", name);
+                                if self.cfg.is_stdout || (self.output_mode == OutputMode::Gradient)
+                                {
+                                    writeln!(self.stdout, " \x1B[1m{}\x1B[0m", name)?;
                                 }
 
-                                handle_output(&grad, &output_mode, &cfg);
+                                self.handle_output(&grad)?;
                             }
+
                             Err(err) => {
-                                if cfg.is_stdout || (output_mode == OutputMode::Gradient) {
-                                    println!("\n  \x1B[31m{}\x1B[39m", err);
+                                if self.cfg.is_stdout || (self.output_mode == OutputMode::Gradient)
+                                {
+                                    writeln!(self.stdout, "\n  \x1B[31m{}\x1B[39m", err)?;
                                 }
                             }
                         }
                     }
+
                     "svg" => {
                         let filename = &path.display().to_string();
                         let gradients =
                             parse_svg(path.into_os_string().into_string().unwrap().as_ref());
 
-                        if (cfg.is_stdout || (output_mode == OutputMode::Gradient))
+                        if (self.cfg.is_stdout || (self.output_mode == OutputMode::Gradient))
                             && gradients.is_empty()
                         {
-                            println!("{}", filename);
-                            println!("  \x1B[31mNo gradients.\x1B[39m");
+                            writeln!(self.stdout, "{}", filename)?;
+                            writeln!(self.stdout, "  \x1B[31mNo gradients.\x1B[39m")?;
                         }
 
                         for (grad, id) in gradients {
                             let (id, stop) = if let Some(id) = id {
-                                if let Some(ref id2) = opt.svg_id {
+                                if let Some(ref id2) = self.opt.svg_id {
                                     if &id == id2 {
                                         (format!("#{}", id), true)
                                     } else {
@@ -396,11 +405,11 @@ fn main() {
                                 ("".to_string(), false)
                             };
 
-                            if cfg.is_stdout || (output_mode == OutputMode::Gradient) {
-                                println!("{} \x1B[1m{}\x1B[0m", filename, id);
+                            if self.cfg.is_stdout || (self.output_mode == OutputMode::Gradient) {
+                                writeln!(self.stdout, "{} \x1B[1m{}\x1B[0m", filename, id)?;
                             }
 
-                            handle_output(&grad, &output_mode, &cfg);
+                            self.handle_output(&grad)?;
 
                             if stop {
                                 break;
@@ -411,21 +420,217 @@ fn main() {
                 }
             }
         }
+
+        Ok(0)
     }
 
-    exit(0);
+    fn handle_output(&mut self, grad: &Gradient) -> io::Result<i32> {
+        match self.output_mode {
+            OutputMode::Gradient => self.display_gradient(grad),
+
+            OutputMode::ColorsN => self.display_colors(&grad.colors(self.opt.take.unwrap())),
+
+            OutputMode::ColorsSample => {
+                let colors = self
+                    .opt
+                    .sample
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .map(|t| grad.at(*t))
+                    .collect::<Vec<_>>();
+
+                self.display_colors(&colors)
+            }
+        }
+    }
+
+    fn display_gradient(&mut self, grad: &Gradient) -> io::Result<i32> {
+        let (dmin, dmax) = grad.domain();
+        let w2 = (self.cfg.width * 2 - 1) as f64;
+        let cb_0 = &self.cfg.cb_color[0];
+        let cb_1 = &self.cfg.cb_color[1];
+
+        for y in 0..self.cfg.height {
+            let mut i = 0;
+
+            for x in 0..self.cfg.width {
+                let bg_color = if self.cfg.use_solid_bg {
+                    &self.cfg.background
+                } else if ((x / 2) & 1) ^ (y & 1) == 0 {
+                    cb_0
+                } else {
+                    cb_1
+                };
+
+                let col_l = grad.at(remap(i as f64, 0.0, w2, dmin, dmax));
+                i += 1;
+
+                let col_r = grad.at(remap(i as f64, 0.0, w2, dmin, dmax));
+                i += 1;
+
+                let col_l = blend(&col_l, bg_color).rgba_u8();
+                let col_r = blend(&col_r, bg_color).rgba_u8();
+
+                write!(
+                    self.stdout,
+                    "\x1B[38;2;{};{};{};48;2;{};{};{}m\u{258C}",
+                    col_l.0, col_l.1, col_l.2, col_r.0, col_r.1, col_r.2
+                )?;
+            }
+
+            writeln!(self.stdout, "\x1B[39;49m")?;
+        }
+
+        Ok(0)
+    }
+
+    fn display_colors(&mut self, colors: &[Color]) -> io::Result<i32> {
+        if self.opt.array {
+            let mut cols = Vec::new();
+
+            for col in colors {
+                cols.push(if self.cfg.use_solid_bg {
+                    format_color(&blend(col, &self.cfg.background), self.cfg.output_format)
+                } else {
+                    format_color(col, self.cfg.output_format)
+                });
+            }
+
+            writeln!(self.stdout, "{:?}", cols)?;
+        } else if self.cfg.is_stdout {
+            let mut width = self.cfg.term_width;
+
+            for col in colors {
+                let (col, bg) = if self.cfg.use_solid_bg {
+                    let c = blend(col, &self.cfg.background);
+                    (c.clone(), c)
+                } else {
+                    (col.clone(), blend(col, &Color::from_rgb(0.0, 0.0, 0.0)))
+                };
+
+                let s = format_color(&col, self.cfg.output_format);
+
+                if width < s.len() {
+                    writeln!(self.stdout)?;
+                    width = self.cfg.term_width;
+                }
+
+                let (r, g, b, _) = bg.rgba_u8();
+
+                let fg = if color_luminance(&bg) < 0.3 {
+                    (255, 255, 255)
+                } else {
+                    (0, 0, 0)
+                };
+
+                write!(
+                    self.stdout,
+                    "\x1B[38;2;{};{};{};48;2;{};{};{}m{}\x1B[39;49m",
+                    fg.0, fg.1, fg.2, r, g, b, &s
+                )?;
+
+                width -= s.len();
+
+                if width >= 1 {
+                    write!(self.stdout, " ")?;
+                    width -= 1;
+                }
+            }
+
+            writeln!(self.stdout)?;
+        } else {
+            for col in colors {
+                if self.cfg.use_solid_bg {
+                    writeln!(
+                        self.stdout,
+                        "{}",
+                        format_color(&blend(col, &self.cfg.background), self.cfg.output_format)
+                    )?;
+                } else {
+                    writeln!(self.stdout, "{}", format_color(col, self.cfg.output_format))?;
+                }
+            }
+        }
+
+        Ok(0)
+    }
+}
+
+fn main() {
+    let opt = Opt::parse();
+
+    let term_width = if let Some((terminal_size::Width(w), _)) = terminal_size::terminal_size() {
+        Some(w as usize)
+    } else {
+        None
+    };
+
+    let background = if let Some(ref c) = opt.background {
+        c.clone()
+    } else {
+        Color::from_rgb(0.0, 0.0, 0.0)
+    };
+
+    let cb_color = if let Some(ref c) = opt.cb_color {
+        c.clone()
+    } else {
+        vec![
+            Color::from_rgb(0.05, 0.05, 0.05),
+            Color::from_rgb(0.20, 0.20, 0.20),
+        ]
+    };
+
+    let width = opt
+        .width
+        .unwrap_or_else(|| term_width.unwrap_or(80))
+        .max(10)
+        .min(term_width.unwrap_or(1000));
+
+    let cfg = Config {
+        is_stdout: atty::is(atty::Stream::Stdout),
+        use_solid_bg: opt.background.is_some(),
+        background,
+        cb_color,
+        term_width: term_width.unwrap_or(80),
+        width,
+        height: opt.height.unwrap_or(2).max(1).min(50),
+        output_format: opt.format.unwrap_or(OutputColor::Hex),
+    };
+
+    let output_mode = if opt.take.is_some() {
+        OutputMode::ColorsN
+    } else if opt.sample.is_some() {
+        OutputMode::ColorsSample
+    } else {
+        OutputMode::Gradient
+    };
+
+    let mut ga = GradientApp {
+        opt,
+        cfg,
+        output_mode,
+        stdout: io::stdout(),
+    };
+
+    match ga.run() {
+        Ok(exit_code) => {
+            exit(exit_code);
+        }
+
+        Err(err) if err.kind() == io::ErrorKind::BrokenPipe => {
+            exit(0);
+        }
+
+        Err(err) => {
+            eprintln!("{}", err);
+            exit(1);
+        }
+    }
 }
 
 fn parse_color(s: &str) -> Result<Color, colorgrad::ParseColorError> {
     s.parse::<Color>()
-}
-
-fn handle_output(grad: &Gradient, mode: &OutputMode, cfg: &Config) {
-    match mode {
-        OutputMode::Gradient => display_gradient(grad, cfg),
-        OutputMode::ColorsN(n) => display_colors_n(grad, *n, cfg),
-        OutputMode::ColorsSample(ref pos) => display_colors_sample(grad, pos, cfg),
-    }
 }
 
 fn blend(color: &Color, bg: &Color) -> Color {
@@ -464,6 +669,7 @@ fn format_alpha(a: f64) -> String {
 fn format_color(col: &Color, format: OutputColor) -> String {
     match format {
         OutputColor::Hex => col.to_hex_string(),
+
         OutputColor::Rgb => {
             let (r, g, b, a) = col.rgba();
             format!(
@@ -474,11 +680,13 @@ fn format_color(col: &Color, format: OutputColor) -> String {
                 format_alpha(a)
             )
         }
+
         OutputColor::Rgb255 => {
             let (r, g, b, _) = col.rgba_u8();
             let x = col.rgba();
             format!("rgb({},{},{}{})", r, g, b, format_alpha(x.3))
         }
+
         OutputColor::Hsl => {
             let (h, s, l, a) = col.to_hsla();
             format!(
@@ -489,6 +697,7 @@ fn format_color(col: &Color, format: OutputColor) -> String {
                 format_alpha(a)
             )
         }
+
         OutputColor::Hsv => {
             let (h, s, v, a) = col.to_hsva();
             format!(
@@ -499,6 +708,7 @@ fn format_color(col: &Color, format: OutputColor) -> String {
                 format_alpha(a)
             )
         }
+
         OutputColor::Hwb => {
             let (h, w, b, a) = col.to_hwba();
             format!(
@@ -509,121 +719,6 @@ fn format_color(col: &Color, format: OutputColor) -> String {
                 format_alpha(a)
             )
         }
-    }
-}
-
-fn display_colors(colors: &[Color], cfg: &Config) {
-    if cfg.array {
-        let mut cols = Vec::new();
-
-        for col in colors {
-            cols.push(if cfg.use_solid_bg {
-                format_color(&blend(col, &cfg.background), cfg.output_format)
-            } else {
-                format_color(col, cfg.output_format)
-            });
-        }
-
-        println!("{:?}", cols);
-        return;
-    }
-
-    if cfg.is_stdout {
-        let mut width = cfg.term_width;
-
-        for col in colors {
-            let (col, bg) = if cfg.use_solid_bg {
-                let c = blend(col, &cfg.background);
-                (c.clone(), c)
-            } else {
-                (col.clone(), blend(col, &Color::from_rgb(0.0, 0.0, 0.0)))
-            };
-
-            let s = format_color(&col, cfg.output_format);
-
-            if width < s.len() {
-                println!();
-                width = cfg.term_width;
-            }
-
-            let (r, g, b, _) = bg.rgba_u8();
-
-            let fg = if color_luminance(&bg) < 0.3 {
-                (255, 255, 255)
-            } else {
-                (0, 0, 0)
-            };
-
-            print!(
-                "\x1B[38;2;{};{};{};48;2;{};{};{}m{}\x1B[39;49m",
-                fg.0, fg.1, fg.2, r, g, b, &s
-            );
-            width -= s.len();
-
-            if width >= 1 {
-                print!(" ");
-                width -= 1;
-            }
-        }
-
-        println!();
-    } else {
-        for col in colors {
-            if cfg.use_solid_bg {
-                println!(
-                    "{}",
-                    format_color(&blend(col, &cfg.background), cfg.output_format)
-                );
-            } else {
-                println!("{}", format_color(col, cfg.output_format));
-            }
-        }
-    }
-}
-
-fn display_colors_n(grad: &Gradient, n: usize, cfg: &Config) {
-    display_colors(&grad.colors(n), cfg);
-}
-
-fn display_colors_sample(grad: &Gradient, positions: &[f64], cfg: &Config) {
-    let colors = positions.iter().map(|t| grad.at(*t)).collect::<Vec<_>>();
-    display_colors(&colors, cfg);
-}
-
-fn display_gradient(grad: &Gradient, cfg: &Config) {
-    let (dmin, dmax) = grad.domain();
-    let w2 = (cfg.width * 2 - 1) as f64;
-    let bg_0 = &cfg.cb_color[0];
-    let bg_1 = &cfg.cb_color[1];
-
-    for y in 0..cfg.height {
-        let mut i = 0;
-
-        for x in 0..cfg.width {
-            let bg = if cfg.use_solid_bg {
-                &cfg.background
-            } else if ((x / 2) & 1) ^ (y & 1) == 0 {
-                bg_0
-            } else {
-                bg_1
-            };
-
-            let col1 = grad.at(remap(i as f64, 0.0, w2, dmin, dmax));
-            i += 1;
-
-            let col2 = grad.at(remap(i as f64, 0.0, w2, dmin, dmax));
-            i += 1;
-
-            let col1 = blend(&col1, bg).rgba_u8();
-            let col2 = blend(&col2, bg).rgba_u8();
-
-            print!(
-                "\x1B[38;2;{};{};{};48;2;{};{};{}m{}",
-                col1.0, col1.1, col1.2, col2.0, col2.1, col2.2, LEFT_HALF_BLOCK
-            );
-        }
-
-        println!("\x1B[39;49m");
     }
 }
 
