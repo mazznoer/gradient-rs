@@ -215,6 +215,62 @@ struct GradientApp {
 }
 
 impl GradientApp {
+    fn new(opt: Opt, stdout: io::Stdout) -> Self {
+        let term_width = if let Some((terminal_size::Width(w), _)) = terminal_size::terminal_size()
+        {
+            Some(w as usize)
+        } else {
+            None
+        };
+
+        let background = if let Some(ref c) = opt.background {
+            c.clone()
+        } else {
+            Color::from_rgb(0.0, 0.0, 0.0)
+        };
+
+        let cb_color = if let Some(ref c) = opt.cb_color {
+            c.clone()
+        } else {
+            vec![
+                Color::from_rgb(0.05, 0.05, 0.05),
+                Color::from_rgb(0.20, 0.20, 0.20),
+            ]
+        };
+
+        let width = opt
+            .width
+            .unwrap_or_else(|| term_width.unwrap_or(80))
+            .max(10)
+            .min(term_width.unwrap_or(1000));
+
+        let cfg = Config {
+            is_stdout: atty::is(atty::Stream::Stdout),
+            use_solid_bg: opt.background.is_some(),
+            background,
+            cb_color,
+            term_width: term_width.unwrap_or(80),
+            width,
+            height: opt.height.unwrap_or(2).max(1).min(50),
+            output_format: opt.format.unwrap_or(OutputColor::Hex),
+        };
+
+        let output_mode = if opt.take.is_some() {
+            OutputMode::ColorsN
+        } else if opt.sample.is_some() {
+            OutputMode::ColorsSample
+        } else {
+            OutputMode::Gradient
+        };
+
+        Self {
+            opt,
+            cfg,
+            output_mode,
+            stdout,
+        }
+    }
+
     fn run(&mut self) -> io::Result<i32> {
         if self.opt.list_presets {
             for name in &PRESET_NAMES {
@@ -560,58 +616,7 @@ impl GradientApp {
 fn main() {
     let opt = Opt::parse();
 
-    let term_width = if let Some((terminal_size::Width(w), _)) = terminal_size::terminal_size() {
-        Some(w as usize)
-    } else {
-        None
-    };
-
-    let background = if let Some(ref c) = opt.background {
-        c.clone()
-    } else {
-        Color::from_rgb(0.0, 0.0, 0.0)
-    };
-
-    let cb_color = if let Some(ref c) = opt.cb_color {
-        c.clone()
-    } else {
-        vec![
-            Color::from_rgb(0.05, 0.05, 0.05),
-            Color::from_rgb(0.20, 0.20, 0.20),
-        ]
-    };
-
-    let width = opt
-        .width
-        .unwrap_or_else(|| term_width.unwrap_or(80))
-        .max(10)
-        .min(term_width.unwrap_or(1000));
-
-    let cfg = Config {
-        is_stdout: atty::is(atty::Stream::Stdout),
-        use_solid_bg: opt.background.is_some(),
-        background,
-        cb_color,
-        term_width: term_width.unwrap_or(80),
-        width,
-        height: opt.height.unwrap_or(2).max(1).min(50),
-        output_format: opt.format.unwrap_or(OutputColor::Hex),
-    };
-
-    let output_mode = if opt.take.is_some() {
-        OutputMode::ColorsN
-    } else if opt.sample.is_some() {
-        OutputMode::ColorsSample
-    } else {
-        OutputMode::Gradient
-    };
-
-    let mut ga = GradientApp {
-        opt,
-        cfg,
-        output_mode,
-        stdout: io::stdout(),
-    };
+    let mut ga = GradientApp::new(opt, io::stdout());
 
     match ga.run() {
         Ok(exit_code) => {
