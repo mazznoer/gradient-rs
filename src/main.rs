@@ -1,6 +1,6 @@
 #![allow(clippy::many_single_char_names)]
 
-use clap::{AppSettings, ArgEnum, Clap};
+use clap::{AppSettings, ArgEnum, Parser};
 use colorgrad::{Color, Gradient};
 use std::io::{self, BufReader, Write};
 use std::{ffi::OsStr, fs::File, path::PathBuf, process::exit};
@@ -8,7 +8,7 @@ use std::{ffi::OsStr, fs::File, path::PathBuf, process::exit};
 mod svg_gradient;
 use svg_gradient::parse_svg;
 
-#[derive(Debug, ArgEnum)]
+#[derive(Clone, Debug, ArgEnum)]
 enum BlendMode {
     Rgb,
     LinearRgb,
@@ -16,7 +16,7 @@ enum BlendMode {
     Oklab,
 }
 
-#[derive(Debug, ArgEnum)]
+#[derive(Clone, Debug, ArgEnum)]
 enum Interpolation {
     Linear,
     Basis,
@@ -97,9 +97,9 @@ Create custom gradient & get 20 colors
 REPOSITORY: <https://github.com/mazznoer/gradient-rs>
 ";
 
-#[derive(Debug, Clap)]
+#[derive(Debug, Parser)]
 #[clap(name = "gradient", author, version, about, after_help = EXTRA_HELP, after_long_help = EXTRA_LONG_HELP)]
-#[clap(setting = AppSettings::ColoredHelp, setting = AppSettings::ArgRequiredElseHelp)]
+#[clap(setting = AppSettings::ArgRequiredElseHelp)]
 struct Opt {
     /// Lists all available preset gradient names
     #[clap(short = 'l', long, help_heading = Some("PRESET GRADIENT"))]
