@@ -8,7 +8,7 @@ use std::{ffi::OsStr, fs::File, path::PathBuf, process::exit};
 mod svg_gradient;
 use svg_gradient::parse_svg;
 
-#[derive(Clone, Debug, ArgEnum)]
+#[derive(Clone, ArgEnum)]
 enum BlendMode {
     Rgb,
     LinearRgb,
@@ -16,7 +16,7 @@ enum BlendMode {
     Oklab,
 }
 
-#[derive(Clone, Debug, ArgEnum)]
+#[derive(Clone, ArgEnum)]
 enum Interpolation {
     Linear,
     Basis,
@@ -97,7 +97,7 @@ Create custom gradient & get 20 colors
 REPOSITORY: <https://github.com/mazznoer/gradient-rs>
 ";
 
-#[derive(Debug, Parser)]
+#[derive(Clone, Default, Parser)]
 #[clap(name = "gradient", author, version, about, after_help = EXTRA_HELP, after_long_help = EXTRA_LONG_HELP)]
 #[clap(setting = AppSettings::ArgRequiredElseHelp)]
 struct Opt {
@@ -188,7 +188,6 @@ struct Opt {
     array: bool,
 }
 
-#[derive(Debug)]
 struct Config {
     is_stdout: bool,
     use_solid_bg: bool,
@@ -200,12 +199,20 @@ struct Config {
     output_format: OutputColor,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 enum OutputMode {
     Gradient,
     ColorsN,
     ColorsSample,
 }
+
+const GGR_SAMPLE: &str = "GIMP Gradient
+Name: Neon Green
+4
+0.000000 0.672788 0.699499 0.000000 1.000000 0.000000 0.000000 0.129412 1.000000 0.000000 0.901961 1 0
+0.699499 0.737062 0.774624 0.129412 1.000000 0.000000 0.901961 0.823529 1.000000 0.807843 1.000000 1 0
+0.774624 0.812187 0.849750 0.823529 1.000000 0.807843 1.000000 0.196078 1.000000 0.000000 0.901961 1 0
+0.849750 0.874791 1.000000 0.196078 1.000000 0.000000 0.901961 0.031373 1.000000 0.000000 0.000000 1 0";
 
 struct GradientApp {
     opt: Opt,
@@ -295,7 +302,13 @@ impl GradientApp {
             return Ok(0);
         }
 
-        Ok(0)
+        writeln!(
+            self.stdout,
+            "\x1B[38;5;9merror:\x1B[39m Specify gradient using -p / --preset, -c / --custom or -f / --file\n"
+        )?;
+
+        example_help()?;
+        Ok(1)
     }
 
     fn preset_gradient(&mut self) -> io::Result<i32> {
@@ -611,6 +624,80 @@ impl GradientApp {
 
         Ok(0)
     }
+}
+
+fn example_help() -> io::Result<i32> {
+    fn parse_colors(colors: &[&str]) -> Vec<Color> {
+        colors.iter().map(|s| parse_color(s).unwrap()).collect()
+    }
+
+    let mut stdout = io::stdout();
+
+    let mut opt = Opt {
+        preset: Some("rainbow".to_string()),
+        width: Some(80),
+        ..Default::default()
+    };
+
+    writeln!(stdout, "\x1B[1mEXAMPLES:\x1B[0m\n")?;
+
+    writeln!(
+        stdout,
+        "\x1B[38;5;10m\u{21AA}\x1B[39m  gradient --preset rainbow"
+    )?;
+    let mut ga = GradientApp::new(opt.clone(), io::stdout());
+    ga.run()?;
+
+    writeln!(
+        stdout,
+        "\x1B[38;5;10m\u{21AA}\x1B[39m  gradient --preset turbo"
+    )?;
+    opt.preset = Some("turbo".to_string());
+    let mut ga = GradientApp::new(opt.clone(), io::stdout());
+    ga.run()?;
+
+    writeln!(
+        stdout,
+        "\x1B[38;5;10m\u{21AA}\x1B[39m  gradient --custom C41189 'rgb(0,191,255)' gold 'hsv(91,88%,50%)'"
+    )?;
+    opt.preset = None;
+    opt.custom = Some(parse_colors(&[
+        "C41189",
+        "rgb(0,191,255)",
+        "gold",
+        "hsv(91,88%,50%)",
+    ]));
+    let mut ga = GradientApp::new(opt.clone(), io::stdout());
+    ga.run()?;
+
+    writeln!(
+        stdout,
+        "\x1B[38;5;10m\u{21AA}\x1B[39m  gradient --file Test.svg Neon_Green.ggr"
+    )?;
+
+    writeln!(stdout, "Test.svg \x1B[1m#purple-gradient\x1B[0m")?;
+    opt.custom = Some(parse_colors(&["4a1578", "c5a8de"]));
+    let mut ga = GradientApp::new(opt.clone(), io::stdout());
+    ga.run()?;
+
+    writeln!(stdout, "Neon_Green.ggr \x1B[1mNeon Green\x1B[0m")?;
+    let color = Color::from_rgb(0.0, 0.0, 0.0);
+    let grad = colorgrad::parse_ggr(BufReader::new(GGR_SAMPLE.as_bytes()), &color, &color)
+        .unwrap()
+        .0;
+    ga.display_gradient(&grad)?;
+
+    writeln!(
+        stdout,
+        "\x1B[38;5;10m\u{21AA}\x1B[39m  gradient --preset viridis --take 10"
+    )?;
+    opt.custom = None;
+    opt.preset = Some("viridis".to_string());
+    opt.take = Some(10);
+    let mut ga = GradientApp::new(opt, io::stdout());
+    ga.run()?;
+
+    Ok(1)
 }
 
 fn main() {
