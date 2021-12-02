@@ -1,6 +1,7 @@
 # `gradient`
 
 [![Build Status](https://github.com/mazznoer/gradient-rs/workflows/Rust/badge.svg)](https://github.com/mazznoer/gradient-rs/actions)
+[![crates.io](https://img.shields.io/crates/v/gradient.svg)](https://crates.io/crates/gradient)
 
 A command-line tool for playing with color gradients.
 
@@ -33,14 +34,16 @@ gradient [OPTIONS]
 * `-W`, `--width` `<NUM>` : Gradient display width (default: terminal width)
 * `-H`, `--height` `<NUM>` : Gradient display height (default: 2)
 * `-b`, `--background` `<COLOR>` : Background color (default: checkerboard)
+* `--cb-color` `<COLOR>` `<COLOR>` : Checkerboard color
 * `-s`, `--sample` `<FLOAT>`... : Get color(s) at specific position
 * `-t`, `--take` `<NUM>` : Get N colors evenly spaced across gradient
 * `-o`, `--format` `<FORMAT>` : Output color format (default: hex) [hex, rgb, rgb255, hsl, hsv, hwb]
+* `-a`, `--array` : Print colors as array
 
 ### Preset gradient
 
 * `-p`, `--preset` `<NAME>` : Using the preset gradient
-* `-l`, `--list-presets` : Lists all available preset gradients
+* `-l`, `--list-presets` : Lists all available preset gradient names
 
 ### Custom gradient
 
@@ -54,7 +57,7 @@ gradient [OPTIONS]
 * `-f`, `--file` `<FILE>`... : Read gradient from SVG or GIMP gradient (ggr) file(s)
 * `--ggr-fg` `<COLOR>` : GGR foreground color (default: black)
 * `--ggr-bg` `<COLOR>` : GGR background color (default: white)
-* `--svg-id` `<ID>` : Pick SVG gradient by ID
+* `--svg-id` `<ID>` : Pick one SVG gradient by ID
 
 `COLOR` can be specified using [CSS color format](https://www.w3.org/TR/css-color-4/).
 
