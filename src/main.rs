@@ -1,6 +1,6 @@
 #![allow(clippy::many_single_char_names)]
 
-use clap::{AppSettings, ArgEnum, Parser};
+use clap::{ArgEnum, Parser};
 use colorgrad::{Color, Gradient};
 use std::io::{self, BufReader, Write};
 use std::{ffi::OsStr, fs::File, path::PathBuf, process::exit};
@@ -99,7 +99,7 @@ REPOSITORY: <https://github.com/mazznoer/gradient-rs>
 
 #[derive(Clone, Default, Parser)]
 #[clap(name = "gradient", author, version, about, after_help = EXTRA_HELP, after_long_help = EXTRA_LONG_HELP)]
-#[clap(setting = AppSettings::ArgRequiredElseHelp)]
+#[clap(arg_required_else_help(true))]
 struct Opt {
     /// Lists all available preset gradient names
     #[clap(short = 'l', long, help_heading = Some("PRESET GRADIENT"))]
