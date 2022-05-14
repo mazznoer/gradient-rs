@@ -282,6 +282,14 @@ impl GradientApp {
         if self.opt.list_presets {
             for name in &PRESET_NAMES {
                 writeln!(self.stdout, "{}", name)?;
+                let opt = Opt {
+                    preset: Some(name.to_string()),
+                    width: Some(80),
+                    height: Some(1),
+                    ..Default::default()
+                };
+                let mut ga = GradientApp::new(opt, io::stdout());
+                ga.run()?;
             }
 
             return Ok(0);
