@@ -318,7 +318,7 @@ impl GradientApp {
             .as_ref()
             .unwrap()
             .to_lowercase()
-            .replace("-", "_")
+            .replace('-', "_")
             .as_ref()
         {
             "blues" => colorgrad::blues(),
