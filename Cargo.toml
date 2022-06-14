@@ -17,10 +17,13 @@ exclude = [
 	"tests/*",
 ]
 
+[profile.release]
+lto = true
+strip = true
+
 [dependencies]
 atty = "0.2.14"
 clap = { version = "= 3.1.18", features = ["derive", "wrap_help"] }
 colorgrad = "0.6.0"
 svg = "0.10.0"
 terminal_size = "0.1.17"
-
