@@ -1,5 +1,5 @@
 use colorgrad::{Color, CustomGradient, Gradient};
-use svg::node::element::tag::{LinearGradient, RadialGradient, Stop, Type};
+use svg::node::element::tag as svg_tag;
 use svg::parser::Event;
 
 fn parse_percent_or_float(s: &str) -> Option<f64> {
@@ -43,7 +43,6 @@ struct SvgGradient {
     pos: Vec<f64>,
 }
 
-#[allow(non_upper_case_globals)]
 pub(crate) fn parse_svg(path: &str) -> Vec<(Gradient, Option<String>)> {
     let mut res = Vec::new();
     let mut index = 0;
@@ -52,9 +51,9 @@ pub(crate) fn parse_svg(path: &str) -> Vec<(Gradient, Option<String>)> {
 
     for event in svg::open(path, &mut content).unwrap() {
         match event {
-            Event::Tag(LinearGradient, t, attributes)
-            | Event::Tag(RadialGradient, t, attributes) => match t {
-                Type::Start => {
+            Event::Tag(svg_tag::LinearGradient, t, attributes)
+            | Event::Tag(svg_tag::RadialGradient, t, attributes) => match t {
+                svg_tag::Type::Start => {
                     let id = attributes.get("id").map(|v| v.to_string());
 
                     res.push(SvgGradient {
@@ -63,13 +62,13 @@ pub(crate) fn parse_svg(path: &str) -> Vec<(Gradient, Option<String>)> {
                         pos: Vec::new(),
                     });
                 }
-                Type::End => {
+                svg_tag::Type::End => {
                     index += 1;
                     prev_pos = f64::NEG_INFINITY;
                 }
-                Type::Empty => {}
+                svg_tag::Type::Empty => {}
             },
-            Event::Tag(Stop, _, attributes) => {
+            Event::Tag(svg_tag::Stop, _, attributes) => {
                 if res.is_empty() {
                     continue;
                 }

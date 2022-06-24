@@ -1,9 +1,8 @@
-#![allow(clippy::many_single_char_names)]
+use std::io::{self, BufReader, Write};
+use std::{ffi::OsStr, fs::File, path::PathBuf, process::exit};
 
 use clap::{ArgEnum, Parser};
 use colorgrad::{Color, Gradient};
-use std::io::{self, BufReader, Write};
-use std::{ffi::OsStr, fs::File, path::PathBuf, process::exit};
 
 mod svg_gradient;
 use svg_gradient::parse_svg;
@@ -546,8 +545,8 @@ impl GradientApp {
                 let col_r = grad.at(remap(i as f64, 0.0, w2, dmin, dmax));
                 i += 1;
 
-                let col_l = blend(&col_l, bg_color).rgba_u8();
-                let col_r = blend(&col_r, bg_color).rgba_u8();
+                let col_l = blend_color(&col_l, bg_color).rgba_u8();
+                let col_r = blend_color(&col_r, bg_color).rgba_u8();
 
                 write!(
                     self.stdout,
@@ -568,7 +567,10 @@ impl GradientApp {
 
             for col in colors {
                 cols.push(if self.cfg.use_solid_bg {
-                    format_color(&blend(col, &self.cfg.background), self.cfg.output_format)
+                    format_color(
+                        &blend_color(col, &self.cfg.background),
+                        self.cfg.output_format,
+                    )
                 } else {
                     format_color(col, self.cfg.output_format)
                 });
@@ -580,10 +582,13 @@ impl GradientApp {
 
             for col in colors {
                 let (col, bg) = if self.cfg.use_solid_bg {
-                    let c = blend(col, &self.cfg.background);
+                    let c = blend_color(col, &self.cfg.background);
                     (c.clone(), c)
                 } else {
-                    (col.clone(), blend(col, &Color::from_rgb(0.0, 0.0, 0.0)))
+                    (
+                        col.clone(),
+                        blend_color(col, &Color::from_rgb(0.0, 0.0, 0.0)),
+                    )
                 };
 
                 let s = format_color(&col, self.cfg.output_format);
@@ -622,7 +627,10 @@ impl GradientApp {
                     writeln!(
                         self.stdout,
                         "{}",
-                        format_color(&blend(col, &self.cfg.background), self.cfg.output_format)
+                        format_color(
+                            &blend_color(col, &self.cfg.background),
+                            self.cfg.output_format
+                        )
                     )?;
                 } else {
                     writeln!(self.stdout, "{}", format_color(col, self.cfg.output_format))?;
@@ -733,19 +741,16 @@ fn parse_color(s: &str) -> Result<Color, colorgrad::ParseColorError> {
     s.parse::<Color>()
 }
 
-fn blend(color: &Color, bg: &Color) -> Color {
-    let col = color.rgba();
-    let bg = bg.rgba();
+fn blend_color(fg: &Color, bg: &Color) -> Color {
     Color::from_rgb(
-        ((1.0 - col.3) * bg.0) + (col.3 * col.0),
-        ((1.0 - col.3) * bg.1) + (col.3 * col.1),
-        ((1.0 - col.3) * bg.2) + (col.3 * col.2),
+        ((1.0 - fg.a) * bg.r) + (fg.a * fg.r),
+        ((1.0 - fg.a) * bg.g) + (fg.a * fg.g),
+        ((1.0 - fg.a) * bg.b) + (fg.a * fg.b),
     )
 }
 
+// Reference http://www.w3.org/TR/2008/REC-WCAG20-20081211/#relativeluminancedef
 fn color_luminance(col: &Color) -> f64 {
-    // http://www.w3.org/TR/2008/REC-WCAG20-20081211/#relativeluminancedef
-
     fn lum(t: f64) -> f64 {
         if t <= 0.03928 {
             t / 12.92
@@ -754,8 +759,7 @@ fn color_luminance(col: &Color) -> f64 {
         }
     }
 
-    let (r, g, b, _) = col.rgba();
-    0.2126 * lum(r) + 0.7152 * lum(g) + 0.0722 * lum(b)
+    0.2126 * lum(col.r) + 0.7152 * lum(col.g) + 0.0722 * lum(col.b)
 }
 
 fn format_alpha(a: f64) -> String {
@@ -771,20 +775,18 @@ fn format_color(col: &Color, format: OutputColor) -> String {
         OutputColor::Hex => col.to_hex_string(),
 
         OutputColor::Rgb => {
-            let (r, g, b, a) = col.rgba();
             format!(
                 "rgb({:.2}%,{:.2}%,{:.2}%{})",
-                r * 100.0,
-                g * 100.0,
-                b * 100.0,
-                format_alpha(a)
+                col.r * 100.0,
+                col.g * 100.0,
+                col.b * 100.0,
+                format_alpha(col.a)
             )
         }
 
         OutputColor::Rgb255 => {
             let (r, g, b, _) = col.rgba_u8();
-            let x = col.rgba();
-            format!("rgb({},{},{}{})", r, g, b, format_alpha(x.3))
+            format!("rgb({},{},{}{})", r, g, b, format_alpha(col.a))
         }
 
         OutputColor::Hsl => {
