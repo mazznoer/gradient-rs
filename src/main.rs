@@ -232,15 +232,15 @@ impl GradientApp {
         let background = if let Some(ref c) = opt.background {
             c.clone()
         } else {
-            Color::from_rgb(0.0, 0.0, 0.0)
+            Color::new(0.0, 0.0, 0.0, 1.0)
         };
 
         let cb_color = if let Some(ref c) = opt.cb_color {
             c.clone()
         } else {
             vec![
-                Color::from_rgb(0.05, 0.05, 0.05),
-                Color::from_rgb(0.20, 0.20, 0.20),
+                Color::new(0.05, 0.05, 0.05, 1.0),
+                Color::new(0.20, 0.20, 0.20, 1.0),
             ]
         };
 
@@ -415,13 +415,13 @@ impl GradientApp {
         let ggr_bg_color = if let Some(ref c) = self.opt.ggr_bg {
             c.clone()
         } else {
-            Color::from_rgb(1.0, 1.0, 1.0)
+            Color::new(1.0, 1.0, 1.0, 1.0)
         };
 
         let ggr_fg_color = if let Some(ref c) = self.opt.ggr_fg {
             c.clone()
         } else {
-            Color::from_rgb(0.0, 0.0, 0.0)
+            Color::new(0.0, 0.0, 0.0, 1.0)
         };
 
         for path in self.opt.file.as_ref().unwrap().clone() {
@@ -545,13 +545,13 @@ impl GradientApp {
                 let col_r = grad.at(remap(i as f64, 0.0, w2, dmin, dmax));
                 i += 1;
 
-                let col_l = blend_color(&col_l, bg_color).rgba_u8();
-                let col_r = blend_color(&col_r, bg_color).rgba_u8();
+                let col_l = blend_color(&col_l, bg_color).to_rgba8();
+                let col_r = blend_color(&col_r, bg_color).to_rgba8();
 
                 write!(
                     self.stdout,
                     "\x1B[38;2;{};{};{};48;2;{};{};{}m\u{258C}",
-                    col_l.0, col_l.1, col_l.2, col_r.0, col_r.1, col_r.2
+                    col_l[0], col_l[1], col_l[2], col_r[0], col_r[1], col_r[2]
                 )?;
             }
 
@@ -587,7 +587,7 @@ impl GradientApp {
                 } else {
                     (
                         col.clone(),
-                        blend_color(col, &Color::from_rgb(0.0, 0.0, 0.0)),
+                        blend_color(col, &Color::new(0.0, 0.0, 0.0, 1.0)),
                     )
                 };
 
@@ -598,7 +598,7 @@ impl GradientApp {
                     width = self.cfg.term_width;
                 }
 
-                let (r, g, b, _) = bg.rgba_u8();
+                let [r, g, b, _] = bg.to_rgba8();
 
                 let fg = if color_luminance(&bg) < 0.3 {
                     (255, 255, 255)
@@ -697,7 +697,7 @@ fn example_help() -> io::Result<i32> {
     ga.run()?;
 
     writeln!(stdout, "Neon_Green.ggr \x1B[1mNeon Green\x1B[0m")?;
-    let color = Color::from_rgb(0.0, 0.0, 0.0);
+    let color = Color::new(0.0, 0.0, 0.0, 1.0);
     let grad = colorgrad::parse_ggr(BufReader::new(GGR_SAMPLE.as_bytes()), &color, &color)
         .unwrap()
         .0;
@@ -742,10 +742,11 @@ fn parse_color(s: &str) -> Result<Color, colorgrad::ParseColorError> {
 }
 
 fn blend_color(fg: &Color, bg: &Color) -> Color {
-    Color::from_rgb(
+    Color::new(
         ((1.0 - fg.a) * bg.r) + (fg.a * fg.r),
         ((1.0 - fg.a) * bg.g) + (fg.a * fg.g),
         ((1.0 - fg.a) * bg.b) + (fg.a * fg.b),
+        1.0,
     )
 }
 
@@ -785,7 +786,7 @@ fn format_color(col: &Color, format: OutputColor) -> String {
         }
 
         OutputColor::Rgb255 => {
-            let (r, g, b, _) = col.rgba_u8();
+            let [r, g, b, _] = col.to_rgba8();
             format!("rgb({},{},{}{})", r, g, b, format_alpha(col.a))
         }
 

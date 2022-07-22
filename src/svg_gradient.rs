@@ -118,13 +118,12 @@ pub(crate) fn parse_svg(path: &str) -> Vec<(Gradient, Option<String>)> {
                     None
                 };
 
-                let color = color.unwrap_or_else(|| Color::from_rgb(0.0, 0.0, 0.0));
+                let color = color.unwrap_or_else(|| Color::new(0.0, 0.0, 0.0, 1.0));
 
                 let offset = offset.unwrap_or(prev_pos);
 
                 let color = if let Some(opacity) = opacity {
-                    let (r, g, b, _) = color.rgba();
-                    Color::from_rgba(r, g, b, opacity.clamp(0.0, 1.0))
+                    Color::new(color.r, color.g, color.b, opacity.clamp(0.0, 1.0))
                 } else {
                     color
                 };
