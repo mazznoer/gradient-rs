@@ -4,14 +4,13 @@ version = "0.3.1"
 authors = ["Nor Khasyatillah <mazznoer@ymail.com>"]
 edition = "2018"
 description = "A command line tool for playing with color gradients"
-keywords = ["color", "gradient", "colormap", "color-scales", "color-scheme"]
+keywords = ["color", "gradient", "colormap", "color-scales", "color-scheme", "gimp"]
 categories = ["command-line-utilities", "graphics"]
 readme = "README.md"
 repository = "https://github.com/mazznoer/gradient-rs"
 license = "MIT OR Apache-2.0"
 exclude = [
 	".github/*",
-	".gitignore",
 	"docs/*",
 	"test_data/*",
 	"tests/*",
@@ -23,7 +22,7 @@ strip = true
 
 [dependencies]
 atty = "0.2.14"
-clap = { version = "= 3.2.5", features = ["derive", "wrap_help"] }
-colorgrad = "0.6.0"
+clap = { version = "= 3.2.14", features = ["derive", "wrap_help"] }
+colorgrad = "0.6.1"
 svg = "0.10.0"
-terminal_size = "0.1.17"
+terminal_size = "0.2.1"
