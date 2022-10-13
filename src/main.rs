@@ -1,13 +1,13 @@
 use std::io::{self, BufReader, Write};
 use std::{ffi::OsStr, fs::File, path::PathBuf, process::exit};
 
-use clap::{ArgEnum, Parser};
+use clap::{Parser, ValueEnum};
 use colorgrad::{Color, Gradient};
 
 mod svg_gradient;
 use svg_gradient::parse_svg;
 
-#[derive(Clone, ArgEnum)]
+#[derive(Clone, ValueEnum)]
 enum BlendMode {
     Rgb,
     LinearRgb,
@@ -15,14 +15,14 @@ enum BlendMode {
     Oklab,
 }
 
-#[derive(Clone, ArgEnum)]
+#[derive(Clone, ValueEnum)]
 enum Interpolation {
     Linear,
     Basis,
     CatmullRom,
 }
 
-#[derive(Debug, Copy, Clone, ArgEnum)]
+#[derive(Debug, Copy, Clone, ValueEnum)]
 enum OutputColor {
     Hex,
     Rgb,
@@ -97,93 +97,91 @@ REPOSITORY: <https://github.com/mazznoer/gradient-rs>
 ";
 
 #[derive(Clone, Default, Parser)]
-#[clap(name = "gradient", author, version, about, after_help = EXTRA_HELP, after_long_help = EXTRA_LONG_HELP)]
-#[clap(arg_required_else_help(true))]
+#[command(name = "gradient", author, version, about, after_help = EXTRA_HELP, after_long_help = EXTRA_LONG_HELP)]
+#[command(arg_required_else_help(true))]
 struct Opt {
     /// Lists all available preset gradient names
-    #[clap(short = 'l', long, help_heading = Some("PRESET GRADIENT"))]
+    #[arg(short = 'l', long, help_heading = Some("PRESET GRADIENT"))]
     list_presets: bool,
 
     /// Use the preset gradient
-    #[clap(short = 'p', long, value_name = "NAME", help_heading = Some("PRESET GRADIENT"))]
+    #[arg(short = 'p', long, value_name = "NAME", help_heading = Some("PRESET GRADIENT"))]
     preset: Option<String>,
 
     /// Create custom gradient with the specified colors
-    #[clap(short = 'c', long, parse(try_from_str = parse_color), multiple_values = true, multiple_occurrences = true, min_values = 1, value_name = "COLOR", conflicts_with = "preset", help_heading = Some("CUSTOM GRADIENT"))]
+    #[arg(short = 'c', long, value_parser = parse_color, num_args = 1.., value_name = "COLOR", conflicts_with = "preset", help_heading = Some("CUSTOM GRADIENT"))]
     custom: Option<Vec<Color>>,
 
     /// Custom gradient color position
-    #[clap(short = 'P', long, multiple_values = true, multiple_occurrences = true, min_values = 2, value_name = "FLOAT", help_heading = Some("CUSTOM GRADIENT"))]
+    #[arg(short = 'P', long, num_args = 2.., value_name = "FLOAT", help_heading = Some("CUSTOM GRADIENT"))]
     position: Option<Vec<f64>>,
 
     /// Custom gradient blending mode [default: oklab]
-    #[clap(short = 'm', long, arg_enum, value_name = "COLOR-SPACE", help_heading = Some("CUSTOM GRADIENT"))]
+    #[arg(short = 'm', long, value_enum, value_name = "COLOR-SPACE", help_heading = Some("CUSTOM GRADIENT"))]
     blend_mode: Option<BlendMode>,
 
     /// Custom gradient interpolation mode [default: catmull-rom]
-    #[clap(short = 'i', long, arg_enum, value_name = "MODE", help_heading = Some("CUSTOM GRADIENT"))]
+    #[arg(short = 'i', long, value_enum, value_name = "MODE", help_heading = Some("CUSTOM GRADIENT"))]
     interpolation: Option<Interpolation>,
 
     /// GGR background color [default: white]
-    #[clap(long, parse(try_from_str = parse_color), value_name = "COLOR", help_heading = Some("GRADIENT FILE"))]
+    #[arg(long, value_parser = parse_color, value_name = "COLOR", help_heading = Some("GRADIENT FILE"))]
     ggr_bg: Option<Color>,
 
     /// GGR foreground color [default: black]
-    #[clap(long, parse(try_from_str = parse_color), value_name = "COLOR", help_heading = Some("GRADIENT FILE"))]
+    #[arg(long, value_parser = parse_color, value_name = "COLOR", help_heading = Some("GRADIENT FILE"))]
     ggr_fg: Option<Color>,
 
     /// Pick SVG gradient by ID
-    #[clap(long, value_name = "ID", help_heading = Some("GRADIENT FILE"))]
+    #[arg(long, value_name = "ID", help_heading = Some("GRADIENT FILE"))]
     svg_id: Option<String>,
 
     /// Read gradient from SVG or GIMP gradient (ggr) file(s)
-    #[clap(
+    #[arg(
         short = 'f',
         long,
-        min_values = 1,
+        num_args = 1..,
         value_name = "FILE",
-        parse(from_os_str),
+        value_parser = clap::value_parser!(PathBuf),
         help_heading = Some("GRADIENT FILE")
     )]
     file: Option<Vec<PathBuf>>,
 
     /// Gradient display width [default: terminal width]
-    #[clap(short = 'W', long, value_name = "NUM")]
+    #[arg(short = 'W', long, value_name = "NUM")]
     width: Option<usize>,
 
     /// Gradient display height [default: 2]
-    #[clap(short = 'H', long, value_name = "NUM")]
+    #[arg(short = 'H', long, value_name = "NUM")]
     height: Option<usize>,
 
     /// Background color [default: checkerboard]
-    #[clap(short = 'b', long, parse(try_from_str = parse_color), value_name = "COLOR")]
+    #[arg(short = 'b', long, value_parser = parse_color, value_name = "COLOR")]
     background: Option<Color>,
 
     /// Checkerboard color
-    #[clap(long, number_of_values = 2, parse(try_from_str = parse_color), value_name = "COLOR")]
+    #[arg(long, number_of_values = 2, value_parser = parse_color, value_name = "COLOR")]
     cb_color: Option<Vec<Color>>,
 
     /// Get N colors evenly spaced across gradient
-    #[clap(short = 't', long, value_name = "NUM", conflicts_with = "sample")]
+    #[arg(short = 't', long, value_name = "NUM", conflicts_with = "sample")]
     take: Option<usize>,
 
     /// Get color(s) at specific position
-    #[clap(
+    #[arg(
         short = 's',
         long,
         value_name = "FLOAT",
-        multiple_values = true,
-        multiple_occurrences = true,
-        min_values = 1
+        num_args = 1..
     )]
     sample: Option<Vec<f64>>,
 
     /// Output color format
-    #[clap(short = 'o', long, arg_enum, value_name = "FORMAT")]
+    #[arg(short = 'o', long, value_enum, value_name = "FORMAT")]
     format: Option<OutputColor>,
 
     /// Print colors from --take or --sample, as array
-    #[clap(short = 'a', long)]
+    #[arg(short = 'a', long)]
     array: bool,
 }
 
@@ -735,6 +733,12 @@ fn main() {
             exit(1);
         }
     }
+}
+
+#[test]
+fn verify_cli() {
+    use clap::CommandFactory;
+    Opt::command().debug_assert()
 }
 
 fn parse_color(s: &str) -> Result<Color, colorgrad::ParseColorError> {
