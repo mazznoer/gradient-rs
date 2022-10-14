@@ -23,6 +23,6 @@ strip = true
 [dependencies]
 atty = "0.2.14"
 clap = { version = "= 4.0.15", features = ["derive", "wrap_help"] }
-colorgrad = "0.6.1"
+colorgrad = "0.6.2"
 svg = "0.10.0"
 terminal_size = "0.2.1"
