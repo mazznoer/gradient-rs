@@ -17,11 +17,17 @@ A command-line tool for playing with color gradients.
 
 ## Installation
 
+Pre-compiled binaries for Linux, macOS and Windows is avaliable on [release page](https://github.com/mazznoer/gradient-rs/releases).
+
+### Cargo
+
 `gradient` can be installed with [cargo](https://www.rust-lang.org/tools/install).
 
 ```shell
 cargo install gradient
 ```
+
+### NetBSD
 
 On NetBSD, a pre-compiled binary is available from the official repositories.
 To install it, simply run:
