@@ -23,6 +23,13 @@ A command-line tool for playing with color gradients.
 cargo install gradient
 ```
 
+On NetBSD, a pre-compiled binary is available from the official repositories.
+To install it, simply run:
+
+```shell
+pkgin install gradiente
+```
+
 ## Usage
 
 ```
