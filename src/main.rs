@@ -293,18 +293,15 @@ impl GradientApp {
         }
 
         if self.opt.preset.is_some() {
-            self.preset_gradient()?;
-            return Ok(0);
+            return self.preset_gradient();
         }
 
         if self.opt.custom.is_some() {
-            self.custom_gradient()?;
-            return Ok(0);
+            return self.custom_gradient();
         }
 
         if self.opt.file.is_some() {
-            self.file_gradient()?;
-            return Ok(0);
+            return self.file_gradient();
         }
 
         writeln!(
@@ -422,7 +419,19 @@ impl GradientApp {
             Color::new(0.0, 0.0, 0.0, 1.0)
         };
 
+        let mut status = 0;
+
         for path in self.opt.file.as_ref().unwrap().clone() {
+            if !path.exists() {
+                write!(
+                    self.stdout,
+                    "{}\n  \x1B[31mFile not found\x1B[39m\n",
+                    &path.display()
+                )?;
+                status = 1;
+                continue;
+            }
+
             if let Some(ext) = path.extension().and_then(OsStr::to_str) {
                 match ext.to_lowercase().as_ref() {
                     "ggr" => {
@@ -495,7 +504,7 @@ impl GradientApp {
             }
         }
 
-        Ok(0)
+        Ok(status)
     }
 
     fn handle_output(&mut self, grad: &Gradient) -> io::Result<i32> {
