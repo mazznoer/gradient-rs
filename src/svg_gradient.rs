@@ -165,7 +165,7 @@ pub(crate) fn parse_svg(path: &str) -> Vec<(Gradient, Option<String>)> {
 
         match grad {
             Ok(grad) => gradients.push((grad, g.id)),
-            Err(e) => eprintln!("{}", e),
+            Err(e) => eprintln!("{e}"),
         }
     }
 

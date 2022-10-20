@@ -22,7 +22,7 @@ enum Interpolation {
     CatmullRom,
 }
 
-#[derive(Debug, Copy, Clone, ValueEnum)]
+#[derive(Copy, Clone, ValueEnum)]
 enum OutputColor {
     Hex,
     Rgb,
@@ -278,7 +278,7 @@ impl GradientApp {
     fn run(&mut self) -> io::Result<i32> {
         if self.opt.list_presets {
             for name in &PRESET_NAMES {
-                writeln!(self.stdout, "{}", name)?;
+                writeln!(self.stdout, "{name}")?;
                 let opt = Opt {
                     preset: Some(name.to_string()),
                     width: Some(80),
@@ -400,7 +400,7 @@ impl GradientApp {
             }
 
             Err(err) => {
-                writeln!(io::stderr(), "Custom gradient error: {}", err)?;
+                writeln!(io::stderr(), "Custom gradient error: {err}")?;
                 Ok(1)
             }
         }
@@ -446,7 +446,7 @@ impl GradientApp {
                             Ok((grad, name)) => {
                                 if self.cfg.is_stdout || (self.output_mode == OutputMode::Gradient)
                                 {
-                                    writeln!(self.stdout, " \x1B[1m{}\x1B[0m", name)?;
+                                    writeln!(self.stdout, " \x1B[1m{name}\x1B[0m")?;
                                 }
 
                                 self.handle_output(&grad)?;
@@ -455,7 +455,7 @@ impl GradientApp {
                             Err(err) => {
                                 if self.cfg.is_stdout || (self.output_mode == OutputMode::Gradient)
                                 {
-                                    writeln!(self.stdout, "\n  \x1B[31m{}\x1B[39m", err)?;
+                                    writeln!(self.stdout, "\n  \x1B[31m{err}\x1B[39m")?;
                                 }
                             }
                         }
@@ -469,7 +469,7 @@ impl GradientApp {
                         if (self.cfg.is_stdout || (self.output_mode == OutputMode::Gradient))
                             && gradients.is_empty()
                         {
-                            writeln!(self.stdout, "{}", filename)?;
+                            writeln!(self.stdout, "{filename}")?;
                             writeln!(self.stdout, "  \x1B[31mNo gradients.\x1B[39m")?;
                         }
 
@@ -477,19 +477,19 @@ impl GradientApp {
                             let (id, stop) = if let Some(id) = id {
                                 if let Some(ref id2) = self.opt.svg_id {
                                     if &id == id2 {
-                                        (format!("#{}", id), true)
+                                        (format!("#{id}"), true)
                                     } else {
                                         continue;
                                     }
                                 } else {
-                                    (format!("#{}", id), false)
+                                    (format!("#{id}"), false)
                                 }
                             } else {
                                 ("".to_string(), false)
                             };
 
                             if self.cfg.is_stdout || (self.output_mode == OutputMode::Gradient) {
-                                writeln!(self.stdout, "{} \x1B[1m{}\x1B[0m", filename, id)?;
+                                writeln!(self.stdout, "{filename} \x1B[1m{id}\x1B[0m")?;
                             }
 
                             self.handle_output(&grad)?;
@@ -583,7 +583,7 @@ impl GradientApp {
                 });
             }
 
-            writeln!(self.stdout, "{:?}", cols)?;
+            writeln!(self.stdout, "{cols:?}")?;
         } else if self.cfg.is_stdout {
             let mut width = self.cfg.term_width;
 
@@ -738,7 +738,7 @@ fn main() {
         }
 
         Err(err) => {
-            eprintln!("{}", err);
+            eprintln!("{err}");
             exit(1);
         }
     }
@@ -800,7 +800,7 @@ fn format_color(col: &Color, format: OutputColor) -> String {
 
         OutputColor::Rgb255 => {
             let [r, g, b, _] = col.to_rgba8();
-            format!("rgb({},{},{}{})", r, g, b, format_alpha(col.a))
+            format!("rgb({r},{g},{b}{})", format_alpha(col.a))
         }
 
         OutputColor::Hsl => {
