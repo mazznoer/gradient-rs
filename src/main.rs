@@ -74,26 +74,27 @@ const PRESET_NAMES: [&str; 38] = [
 ];
 
 const EXTRA_HELP: &str =
-    "COLOR can be specified using CSS color format <https://www.w3.org/TR/css-color-4/>.";
+    "\x1B[1mCOLOR\x1B[0m can be specified using CSS color format <https://www.w3.org/TR/css-color-4/>.";
 
-const EXTRA_LONG_HELP: &str = "EXAMPLES:
-Display preset gradient
+const EXTRA_LONG_HELP: &str = "\x1B[1;4mUsage Examples:\x1B[0m
+  Display preset gradient
 
-    gradient -p rainbow
+      \x1B[1m$\x1B[0m gradient --preset rainbow
 
-Get 15 colors from preset gradient
+  Get 15 colors from preset gradient
 
-    gradient -p spectral -t 15
+      \x1B[1m$\x1B[0m gradient --preset spectral --take 15
 
-Create & display custom gradient
+  Create & display custom gradient
 
-    gradient -c deeppink gold seagreen
+      \x1B[1m$\x1B[0m gradient --custom deeppink gold seagreen
 
-Create custom gradient & get 20 colors
+  Create custom gradient & get 20 colors
 
-    gradient -c ff00ff 'rgb(50,200,70)' 'hwb(195,0,0.5)' -t 20
+      \x1B[1m$\x1B[0m gradient --custom ff00ff 'rgb(50,200,70)' 'hwb(195,0,0.5)' --take 20
 
-REPOSITORY: <https://github.com/mazznoer/gradient-rs>
+\x1B[1;4mRepository:\x1B[0m
+  URL: https://github.com/mazznoer/gradient-rs
 ";
 
 #[derive(Clone, Default, Parser)]
