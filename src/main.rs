@@ -1,36 +1,14 @@
 use std::io::{self, BufReader, Write};
-use std::{ffi::OsStr, fs::File, path::PathBuf, process::exit};
+use std::{ffi::OsStr, fs::File, process::exit};
 
-use clap::{Parser, ValueEnum};
+use clap::Parser;
 use colorgrad::{preset, Color, Gradient};
+
+mod cli;
+use cli::{parse_color, BlendMode, Interpolation, Opt, OutputColor};
 
 mod svg_gradient;
 use svg_gradient::parse_svg;
-
-#[derive(Clone, ValueEnum)]
-enum BlendMode {
-    Rgb,
-    LinearRgb,
-    Oklab,
-    Lab,
-}
-
-#[derive(Clone, ValueEnum)]
-enum Interpolation {
-    Linear,
-    Basis,
-    CatmullRom,
-}
-
-#[derive(Copy, Clone, ValueEnum)]
-enum OutputColor {
-    Hex,
-    Rgb,
-    Rgb255,
-    Hsl,
-    Hsv,
-    Hwb,
-}
 
 const PRESET_NAMES: [&str; 38] = [
     "blues",
@@ -72,119 +50,6 @@ const PRESET_NAMES: [&str; 38] = [
     "yl-or-br",
     "yl-or-rd",
 ];
-
-const EXTRA_HELP: &str =
-    "\x1B[1mCOLOR\x1B[0m can be specified using CSS color format <https://www.w3.org/TR/css-color-4/>.";
-
-const EXTRA_LONG_HELP: &str = "\x1B[1;4mUsage Examples:\x1B[0m
-  Display preset gradient
-
-      \x1B[1m$\x1B[0m gradient --preset rainbow
-
-  Get 15 colors from preset gradient
-
-      \x1B[1m$\x1B[0m gradient --preset spectral --take 15
-
-  Create & display custom gradient
-
-      \x1B[1m$\x1B[0m gradient --custom deeppink gold seagreen
-
-  Create custom gradient & get 20 colors
-
-      \x1B[1m$\x1B[0m gradient --custom ff00ff 'rgb(50,200,70)' 'hwb(195,0,0.5)' --take 20
-
-\x1B[1;4mRepository:\x1B[0m
-  URL: https://github.com/mazznoer/gradient-rs
-";
-
-#[derive(Clone, Default, Parser)]
-#[command(name = "gradient", author, version, about, after_help = EXTRA_HELP, after_long_help = EXTRA_LONG_HELP)]
-#[command(arg_required_else_help(true))]
-struct Opt {
-    /// Lists all available preset gradient names
-    #[arg(short = 'l', long, help_heading = Some("PRESET GRADIENT"))]
-    list_presets: bool,
-
-    /// Use the preset gradient
-    #[arg(short = 'p', long, value_name = "NAME", help_heading = Some("PRESET GRADIENT"))]
-    preset: Option<String>,
-
-    /// Create custom gradient with the specified colors
-    #[arg(short = 'c', long, value_parser = parse_color, num_args = 1.., value_name = "COLOR", conflicts_with = "preset", help_heading = Some("CUSTOM GRADIENT"))]
-    custom: Option<Vec<Color>>,
-
-    /// Custom gradient color position
-    #[arg(short = 'P', long, num_args = 2.., value_name = "FLOAT", help_heading = Some("CUSTOM GRADIENT"))]
-    position: Option<Vec<f32>>,
-
-    /// Custom gradient blending mode [default: oklab]
-    #[arg(short = 'm', long, value_enum, value_name = "COLOR-SPACE", help_heading = Some("CUSTOM GRADIENT"))]
-    blend_mode: Option<BlendMode>,
-
-    /// Custom gradient interpolation mode [default: catmull-rom]
-    #[arg(short = 'i', long, value_enum, value_name = "MODE", help_heading = Some("CUSTOM GRADIENT"))]
-    interpolation: Option<Interpolation>,
-
-    /// GGR background color [default: white]
-    #[arg(long, value_parser = parse_color, value_name = "COLOR", help_heading = Some("GRADIENT FILE"))]
-    ggr_bg: Option<Color>,
-
-    /// GGR foreground color [default: black]
-    #[arg(long, value_parser = parse_color, value_name = "COLOR", help_heading = Some("GRADIENT FILE"))]
-    ggr_fg: Option<Color>,
-
-    /// Pick SVG gradient by ID
-    #[arg(long, value_name = "ID", help_heading = Some("GRADIENT FILE"))]
-    svg_id: Option<String>,
-
-    /// Read gradient from SVG or GIMP gradient (ggr) file(s)
-    #[arg(
-        short = 'f',
-        long,
-        num_args = 1..,
-        value_name = "FILE",
-        value_parser = clap::value_parser!(PathBuf),
-        help_heading = Some("GRADIENT FILE")
-    )]
-    file: Option<Vec<PathBuf>>,
-
-    /// Gradient display width [default: terminal width]
-    #[arg(short = 'W', long, value_name = "NUM")]
-    width: Option<usize>,
-
-    /// Gradient display height [default: 2]
-    #[arg(short = 'H', long, value_name = "NUM")]
-    height: Option<usize>,
-
-    /// Background color [default: checkerboard]
-    #[arg(short = 'b', long, value_parser = parse_color, value_name = "COLOR")]
-    background: Option<Color>,
-
-    /// Checkerboard color
-    #[arg(long, number_of_values = 2, value_parser = parse_color, value_name = "COLOR")]
-    cb_color: Option<Vec<Color>>,
-
-    /// Get N colors evenly spaced across gradient
-    #[arg(short = 't', long, value_name = "NUM", conflicts_with = "sample")]
-    take: Option<usize>,
-
-    /// Get color(s) at specific position
-    #[arg(
-        short = 's',
-        long,
-        value_name = "FLOAT",
-        num_args = 1..
-    )]
-    sample: Option<Vec<f32>>,
-
-    /// Output color format
-    #[arg(short = 'o', long, value_enum, value_name = "FORMAT")]
-    format: Option<OutputColor>,
-
-    /// Print colors from --take or --sample, as array
-    #[arg(short = 'a', long)]
-    array: bool,
-}
 
 struct Config {
     is_stdout: bool,
@@ -760,10 +625,6 @@ fn main() {
 fn verify_cli() {
     use clap::CommandFactory;
     Opt::command().debug_assert()
-}
-
-fn parse_color(s: &str) -> Result<Color, colorgrad::ParseColorError> {
-    s.parse::<Color>()
 }
 
 fn blend_color(fg: &Color, bg: &Color) -> Color {
