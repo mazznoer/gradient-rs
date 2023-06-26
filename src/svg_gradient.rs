@@ -1,16 +1,16 @@
-use colorgrad::{Color, CustomGradient, Gradient};
+use colorgrad::{Color, GradientBuilder, LinearGradient};
 use svg::node::element::tag as svg_tag;
 use svg::parser::Event;
 
-fn parse_percent_or_float(s: &str) -> Option<f64> {
+fn parse_percent_or_float(s: &str) -> Option<f32> {
     if let Some(s) = s.strip_suffix('%') {
-        if let Ok(t) = s.parse::<f64>() {
+        if let Ok(t) = s.parse::<f32>() {
             return Some(t / 100.0);
         }
         return None;
     }
 
-    if let Ok(t) = s.parse::<f64>() {
+    if let Ok(t) = s.parse::<f32>() {
         return Some(t);
     }
 
@@ -40,13 +40,13 @@ fn parse_styles(s: &str) -> (Option<&str>, Option<&str>) {
 struct SvgGradient {
     id: Option<String>,
     colors: Vec<Color>,
-    pos: Vec<f64>,
+    pos: Vec<f32>,
 }
 
-pub(crate) fn parse_svg(path: &str) -> Vec<(Gradient, Option<String>)> {
+pub(crate) fn parse_svg(path: &str) -> Vec<(LinearGradient, Option<String>)> {
     let mut res = Vec::new();
     let mut index = 0;
-    let mut prev_pos = f64::NEG_INFINITY;
+    let mut prev_pos = f32::NEG_INFINITY;
     let mut content = String::new();
 
     for event in svg::open(path, &mut content).unwrap() {
@@ -64,7 +64,7 @@ pub(crate) fn parse_svg(path: &str) -> Vec<(Gradient, Option<String>)> {
                 }
                 svg_tag::Type::End => {
                     index += 1;
-                    prev_pos = f64::NEG_INFINITY;
+                    prev_pos = f32::NEG_INFINITY;
                 }
                 svg_tag::Type::Empty => {}
             },
@@ -158,10 +158,10 @@ pub(crate) fn parse_svg(path: &str) -> Vec<(Gradient, Option<String>)> {
             g.colors.push(g.colors.last().unwrap().clone());
         }
 
-        let grad = CustomGradient::new()
+        let grad = GradientBuilder::new()
             .colors(&g.colors)
             .domain(&g.pos)
-            .build();
+            .build::<LinearGradient>();
 
         match grad {
             Ok(grad) => gradients.push((grad, g.id)),

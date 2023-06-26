@@ -2,7 +2,7 @@ use std::io::{self, BufReader, Write};
 use std::{ffi::OsStr, fs::File, path::PathBuf, process::exit};
 
 use clap::{Parser, ValueEnum};
-use colorgrad::{Color, Gradient};
+use colorgrad::{preset, Color, Gradient};
 
 mod svg_gradient;
 use svg_gradient::parse_svg;
@@ -11,8 +11,8 @@ use svg_gradient::parse_svg;
 enum BlendMode {
     Rgb,
     LinearRgb,
-    Hsv,
     Oklab,
+    Lab,
 }
 
 #[derive(Clone, ValueEnum)]
@@ -115,7 +115,7 @@ struct Opt {
 
     /// Custom gradient color position
     #[arg(short = 'P', long, num_args = 2.., value_name = "FLOAT", help_heading = Some("CUSTOM GRADIENT"))]
-    position: Option<Vec<f64>>,
+    position: Option<Vec<f32>>,
 
     /// Custom gradient blending mode [default: oklab]
     #[arg(short = 'm', long, value_enum, value_name = "COLOR-SPACE", help_heading = Some("CUSTOM GRADIENT"))]
@@ -175,7 +175,7 @@ struct Opt {
         value_name = "FLOAT",
         num_args = 1..
     )]
-    sample: Option<Vec<f64>>,
+    sample: Option<Vec<f32>>,
 
     /// Output color format
     #[arg(short = 'o', long, value_enum, value_name = "FORMAT")]
@@ -315,7 +315,7 @@ impl GradientApp {
     }
 
     fn preset_gradient(&mut self) -> io::Result<i32> {
-        let grad = match self
+        let grad: Box<dyn Gradient> = match self
             .opt
             .preset
             .as_ref()
@@ -324,56 +324,56 @@ impl GradientApp {
             .replace('-', "_")
             .as_ref()
         {
-            "blues" => colorgrad::blues(),
-            "br_bg" => colorgrad::br_bg(),
-            "bu_gn" => colorgrad::bu_gn(),
-            "bu_pu" => colorgrad::bu_pu(),
-            "cividis" => colorgrad::cividis(),
-            "cool" => colorgrad::cool(),
-            "cubehelix" => colorgrad::cubehelix_default(),
-            "gn_bu" => colorgrad::gn_bu(),
-            "greens" => colorgrad::greens(),
-            "greys" => colorgrad::greys(),
-            "inferno" => colorgrad::inferno(),
-            "magma" => colorgrad::magma(),
-            "or_rd" => colorgrad::or_rd(),
-            "oranges" => colorgrad::oranges(),
-            "pi_yg" => colorgrad::pi_yg(),
-            "plasma" => colorgrad::plasma(),
-            "pr_gn" => colorgrad::pr_gn(),
-            "pu_bu" => colorgrad::pu_bu(),
-            "pu_bu_gn" => colorgrad::pu_bu_gn(),
-            "pu_or" => colorgrad::pu_or(),
-            "pu_rd" => colorgrad::pu_rd(),
-            "purples" => colorgrad::purples(),
-            "rainbow" => colorgrad::rainbow(),
-            "rd_bu" => colorgrad::rd_bu(),
-            "rd_gy" => colorgrad::rd_gy(),
-            "rd_pu" => colorgrad::rd_pu(),
-            "rd_yl_bu" => colorgrad::rd_yl_bu(),
-            "rd_yl_gn" => colorgrad::rd_yl_gn(),
-            "reds" => colorgrad::reds(),
-            "sinebow" => colorgrad::sinebow(),
-            "spectral" => colorgrad::spectral(),
-            "turbo" => colorgrad::turbo(),
-            "viridis" => colorgrad::viridis(),
-            "warm" => colorgrad::warm(),
-            "yl_gn" => colorgrad::yl_gn(),
-            "yl_gn_bu" => colorgrad::yl_gn_bu(),
-            "yl_or_br" => colorgrad::yl_or_br(),
-            "yl_or_rd" => colorgrad::yl_or_rd(),
+            "blues" => Box::new(preset::blues()),
+            "br_bg" => Box::new(preset::br_bg()),
+            "bu_gn" => Box::new(preset::bu_gn()),
+            "bu_pu" => Box::new(preset::bu_pu()),
+            "cividis" => Box::new(preset::cividis()),
+            "cool" => Box::new(preset::cool()),
+            "cubehelix" => Box::new(preset::cubehelix_default()),
+            "gn_bu" => Box::new(preset::gn_bu()),
+            "greens" => Box::new(preset::greens()),
+            "greys" => Box::new(preset::greys()),
+            "inferno" => Box::new(preset::inferno()),
+            "magma" => Box::new(preset::magma()),
+            "or_rd" => Box::new(preset::or_rd()),
+            "oranges" => Box::new(preset::oranges()),
+            "pi_yg" => Box::new(preset::pi_yg()),
+            "plasma" => Box::new(preset::plasma()),
+            "pr_gn" => Box::new(preset::pr_gn()),
+            "pu_bu" => Box::new(preset::pu_bu()),
+            "pu_bu_gn" => Box::new(preset::pu_bu_gn()),
+            "pu_or" => Box::new(preset::pu_or()),
+            "pu_rd" => Box::new(preset::pu_rd()),
+            "purples" => Box::new(preset::purples()),
+            "rainbow" => Box::new(preset::rainbow()),
+            "rd_bu" => Box::new(preset::rd_bu()),
+            "rd_gy" => Box::new(preset::rd_gy()),
+            "rd_pu" => Box::new(preset::rd_pu()),
+            "rd_yl_bu" => Box::new(preset::rd_yl_bu()),
+            "rd_yl_gn" => Box::new(preset::rd_yl_gn()),
+            "reds" => Box::new(preset::reds()),
+            "sinebow" => Box::new(preset::sinebow()),
+            "spectral" => Box::new(preset::spectral()),
+            "turbo" => Box::new(preset::turbo()),
+            "viridis" => Box::new(preset::viridis()),
+            "warm" => Box::new(preset::warm()),
+            "yl_gn" => Box::new(preset::yl_gn()),
+            "yl_gn_bu" => Box::new(preset::yl_gn_bu()),
+            "yl_or_br" => Box::new(preset::yl_or_br()),
+            "yl_or_rd" => Box::new(preset::yl_or_rd()),
             _ => {
                 writeln!(io::stderr(), "Error: Invalid preset gradient name. Use -l flag to list all preset gradient names.")?;
                 return Ok(1);
             }
         };
 
-        self.handle_output(&grad)?;
+        self.handle_output(grad)?;
         Ok(0)
     }
 
     fn custom_gradient(&mut self) -> io::Result<i32> {
-        let mut gb = colorgrad::CustomGradient::new();
+        let mut gb = colorgrad::GradientBuilder::new();
 
         gb.colors(self.opt.custom.as_ref().unwrap());
 
@@ -384,27 +384,36 @@ impl GradientApp {
         gb.mode(match self.opt.blend_mode {
             Some(BlendMode::Rgb) => colorgrad::BlendMode::Rgb,
             Some(BlendMode::LinearRgb) => colorgrad::BlendMode::LinearRgb,
-            Some(BlendMode::Hsv) => colorgrad::BlendMode::Hsv,
+            Some(BlendMode::Lab) => colorgrad::BlendMode::Lab,
             _ => colorgrad::BlendMode::Oklab,
         });
 
-        gb.interpolation(match self.opt.interpolation {
-            Some(Interpolation::Linear) => colorgrad::Interpolation::Linear,
-            Some(Interpolation::Basis) => colorgrad::Interpolation::Basis,
-            _ => colorgrad::Interpolation::CatmullRom,
-        });
+        let grad: Box<dyn Gradient> = match self.opt.interpolation {
+            Some(Interpolation::Linear) => match gb.build::<colorgrad::LinearGradient>() {
+                Ok(g) => Box::new(g),
+                Err(e) => {
+                    writeln!(io::stderr(), "Custom gradient error: {e}")?;
+                    return Ok(1);
+                }
+            },
+            Some(Interpolation::Basis) => match gb.build::<colorgrad::BasisGradient>() {
+                Ok(g) => Box::new(g),
+                Err(e) => {
+                    writeln!(io::stderr(), "Custom gradient error: {e}")?;
+                    return Ok(1);
+                }
+            },
+            _ => match gb.build::<colorgrad::CatmullRomGradient>() {
+                Ok(g) => Box::new(g),
+                Err(e) => {
+                    writeln!(io::stderr(), "Custom gradient error: {e}")?;
+                    return Ok(1);
+                }
+            },
+        };
 
-        match gb.build() {
-            Ok(grad) => {
-                self.handle_output(&grad)?;
-                Ok(0)
-            }
-
-            Err(err) => {
-                writeln!(io::stderr(), "Custom gradient error: {err}")?;
-                Ok(1)
-            }
-        }
+        self.handle_output(grad)?;
+        Ok(0)
     }
 
     fn file_gradient(&mut self) -> io::Result<i32> {
@@ -442,15 +451,18 @@ impl GradientApp {
 
                         let f = File::open(&path).unwrap();
 
-                        match colorgrad::parse_ggr(BufReader::new(f), &ggr_fg_color, &ggr_bg_color)
-                        {
-                            Ok((grad, name)) => {
+                        match colorgrad::GimpGradient::new(
+                            BufReader::new(f),
+                            &ggr_fg_color,
+                            &ggr_bg_color,
+                        ) {
+                            Ok(grad) => {
                                 if self.cfg.is_stdout || (self.output_mode == OutputMode::Gradient)
                                 {
-                                    writeln!(self.stdout, " \x1B[1m{name}\x1B[0m")?;
+                                    writeln!(self.stdout, " \x1B[1m{}\x1B[0m", grad.name())?;
                                 }
 
-                                self.handle_output(&grad)?;
+                                self.handle_output(Box::new(grad) as Box<dyn Gradient>)?;
                             }
 
                             Err(err) => {
@@ -493,7 +505,7 @@ impl GradientApp {
                                 writeln!(self.stdout, "{filename} \x1B[1m{id}\x1B[0m")?;
                             }
 
-                            self.handle_output(&grad)?;
+                            self.handle_output(Box::new(grad) as Box<dyn Gradient>)?;
 
                             if stop {
                                 break;
@@ -508,7 +520,7 @@ impl GradientApp {
         Ok(status)
     }
 
-    fn handle_output(&mut self, grad: &Gradient) -> io::Result<i32> {
+    fn handle_output(&mut self, grad: Box<dyn Gradient>) -> io::Result<i32> {
         match self.output_mode {
             OutputMode::Gradient => self.display_gradient(grad),
 
@@ -529,9 +541,9 @@ impl GradientApp {
         }
     }
 
-    fn display_gradient(&mut self, grad: &Gradient) -> io::Result<i32> {
+    fn display_gradient(&mut self, grad: Box<dyn Gradient>) -> io::Result<i32> {
         let (dmin, dmax) = grad.domain();
-        let w2 = (self.cfg.width * 2 - 1) as f64;
+        let w2 = (self.cfg.width * 2 - 1) as f32;
         let cb_0 = &self.cfg.cb_color[0];
         let cb_1 = &self.cfg.cb_color[1];
 
@@ -547,10 +559,10 @@ impl GradientApp {
                     cb_1
                 };
 
-                let col_l = grad.at(remap(i as f64, 0.0, w2, dmin, dmax));
+                let col_l = grad.at(remap(i as f32, 0.0, w2, dmin, dmax));
                 i += 1;
 
-                let col_r = grad.at(remap(i as f64, 0.0, w2, dmin, dmax));
+                let col_r = grad.at(remap(i as f32, 0.0, w2, dmin, dmax));
                 i += 1;
 
                 let col_l = blend_color(&col_l, bg_color).to_rgba8();
@@ -706,10 +718,9 @@ fn example_help() -> io::Result<i32> {
 
     writeln!(stdout, "Neon_Green.ggr \x1B[1mNeon Green\x1B[0m")?;
     let color = Color::new(0.0, 0.0, 0.0, 1.0);
-    let grad = colorgrad::parse_ggr(BufReader::new(GGR_SAMPLE.as_bytes()), &color, &color)
-        .unwrap()
-        .0;
-    ga.display_gradient(&grad)?;
+    let grad = colorgrad::GimpGradient::new(BufReader::new(GGR_SAMPLE.as_bytes()), &color, &color)
+        .unwrap();
+    ga.display_gradient(Box::new(grad) as Box<dyn Gradient>)?;
 
     writeln!(
         stdout,
@@ -765,8 +776,8 @@ fn blend_color(fg: &Color, bg: &Color) -> Color {
 }
 
 // Reference http://www.w3.org/TR/2008/REC-WCAG20-20081211/#relativeluminancedef
-fn color_luminance(col: &Color) -> f64 {
-    fn lum(t: f64) -> f64 {
+fn color_luminance(col: &Color) -> f32 {
+    fn lum(t: f32) -> f32 {
         if t <= 0.03928 {
             t / 12.92
         } else {
@@ -777,7 +788,7 @@ fn color_luminance(col: &Color) -> f64 {
     0.2126 * lum(col.r) + 0.7152 * lum(col.g) + 0.0722 * lum(col.b)
 }
 
-fn format_alpha(a: f64) -> String {
+fn format_alpha(a: f32) -> String {
     let s = format!(",{:.2}%", a * 100.0);
     if s.starts_with(",100") {
         return "".to_string();
@@ -805,7 +816,7 @@ fn format_color(col: &Color, format: OutputColor) -> String {
         }
 
         OutputColor::Hsl => {
-            let (h, s, l, a) = col.to_hsla();
+            let [h, s, l, a] = col.to_hsla();
             format!(
                 "hsl({:.2},{:.2}%,{:.2}%{})",
                 h,
@@ -816,7 +827,7 @@ fn format_color(col: &Color, format: OutputColor) -> String {
         }
 
         OutputColor::Hsv => {
-            let (h, s, v, a) = col.to_hsva();
+            let [h, s, v, a] = col.to_hsva();
             format!(
                 "hsv({:.2},{:.2}%,{:.2}%{})",
                 h,
@@ -827,7 +838,7 @@ fn format_color(col: &Color, format: OutputColor) -> String {
         }
 
         OutputColor::Hwb => {
-            let (h, w, b, a) = col.to_hwba();
+            let [h, w, b, a] = col.to_hwba();
             format!(
                 "hwb({:.2},{:.2}%,{:.2}%{})",
                 h,
@@ -840,6 +851,6 @@ fn format_color(col: &Color, format: OutputColor) -> String {
 }
 
 // Map t from range [a, b] to range [c, d]
-fn remap(t: f64, a: f64, b: f64, c: f64, d: f64) -> f64 {
+fn remap(t: f32, a: f32, b: f32, c: f32, d: f32) -> f32 {
     (t - a) * ((d - c) / (b - a)) + c
 }

@@ -23,6 +23,7 @@ strip = true
 [dependencies]
 atty = "0.2.14"
 clap = { version = "= 4.2.7", features = ["derive", "wrap_help"] }
-colorgrad = "0.6.2"
+#colorgrad = "0.6.2"
+colorgrad = { git = "https://github.com/mazznoer/colorgrad-rs.git", features = ["lab", "ggr"] }
 svg = "0.13.1"
 terminal_size = "0.2.6"
