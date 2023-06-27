@@ -1,11 +1,10 @@
+use clap::Parser;
+use colorgrad::{preset, Color, Gradient};
 use std::io::{self, BufReader, Write};
 use std::{ffi::OsStr, fs::File, process::exit};
 
-use clap::Parser;
-use colorgrad::{preset, Color, Gradient};
-
 mod cli;
-use cli::{parse_color, BlendMode, Interpolation, Opt, OutputColor};
+use cli::{BlendMode, Interpolation, Opt, OutputColor};
 
 mod svg_gradient;
 use svg_gradient::parse_svg;
@@ -529,7 +528,10 @@ impl GradientApp {
 
 fn example_help() -> io::Result<i32> {
     fn parse_colors(colors: &[&str]) -> Vec<Color> {
-        colors.iter().map(|s| parse_color(s).unwrap()).collect()
+        colors
+            .iter()
+            .map(|s| Color::from_html(s).unwrap())
+            .collect()
     }
 
     let mut stdout = io::stdout();

@@ -64,7 +64,7 @@ pub struct Opt {
     pub preset: Option<String>,
 
     /// Create custom gradient with the specified colors
-    #[arg(short = 'c', long, value_parser = parse_color, num_args = 1.., value_name = "COLOR", conflicts_with = "preset", help_heading = Some("CUSTOM GRADIENT"))]
+    #[arg(short = 'c', long, num_args = 1.., value_name = "COLOR", conflicts_with = "preset", help_heading = Some("CUSTOM GRADIENT"))]
     pub custom: Option<Vec<Color>>,
 
     /// Custom gradient color position
@@ -80,11 +80,11 @@ pub struct Opt {
     pub interpolation: Option<Interpolation>,
 
     /// GGR background color [default: white]
-    #[arg(long, value_parser = parse_color, value_name = "COLOR", help_heading = Some("GRADIENT FILE"))]
+    #[arg(long, value_name = "COLOR", help_heading = Some("GRADIENT FILE"))]
     pub ggr_bg: Option<Color>,
 
     /// GGR foreground color [default: black]
-    #[arg(long, value_parser = parse_color, value_name = "COLOR", help_heading = Some("GRADIENT FILE"))]
+    #[arg(long, value_name = "COLOR", help_heading = Some("GRADIENT FILE"))]
     pub ggr_fg: Option<Color>,
 
     /// Pick SVG gradient by ID
@@ -111,11 +111,11 @@ pub struct Opt {
     pub height: Option<usize>,
 
     /// Background color [default: checkerboard]
-    #[arg(short = 'b', long, value_parser = parse_color, value_name = "COLOR")]
+    #[arg(short = 'b', long, value_name = "COLOR")]
     pub background: Option<Color>,
 
     /// Checkerboard color
-    #[arg(long, number_of_values = 2, value_parser = parse_color, value_name = "COLOR")]
+    #[arg(long, number_of_values = 2, value_name = "COLOR")]
     pub cb_color: Option<Vec<Color>>,
 
     /// Get N colors evenly spaced across gradient
@@ -123,12 +123,7 @@ pub struct Opt {
     pub take: Option<usize>,
 
     /// Get color(s) at specific position
-    #[arg(
-        short = 's',
-        long,
-        value_name = "FLOAT",
-        num_args = 1..
-    )]
+    #[arg(short = 's', long, value_name = "FLOAT", num_args = 1..)]
     pub sample: Option<Vec<f32>>,
 
     /// Output color format
@@ -138,8 +133,4 @@ pub struct Opt {
     /// Print colors from --take or --sample, as array
     #[arg(short = 'a', long)]
     pub array: bool,
-}
-
-pub fn parse_color(s: &str) -> Result<Color, colorgrad::ParseColorError> {
-    s.parse::<Color>()
 }
