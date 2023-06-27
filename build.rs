@@ -6,6 +6,10 @@ include!("src/cli.rs");
 
 fn main() -> Result<(), Error> {
     let outdir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("completions/");
+    if !outdir.exists() {
+        std::fs::create_dir(outdir.clone()).expect("Failed to create 'completions' directory.");
+    }
+
     let mut cmd = Opt::command();
 
     for &shell in Shell::value_variants() {
