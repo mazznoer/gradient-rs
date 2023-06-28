@@ -9,6 +9,9 @@ use cli::{BlendMode, Interpolation, Opt, OutputColor};
 mod svg_gradient;
 use svg_gradient::parse_svg;
 
+mod util;
+use util::{blend_color, color_luminance, format_color, remap};
+
 const PRESET_NAMES: [&str; 38] = [
     "blues",
     "br-bg",
@@ -67,14 +70,6 @@ enum OutputMode {
     ColorsN,
     ColorsSample,
 }
-
-const GGR_SAMPLE: &str = "GIMP Gradient
-Name: Neon Green
-4
-0.000000 0.672788 0.699499 0.000000 1.000000 0.000000 0.000000 0.129412 1.000000 0.000000 0.901961 1 0
-0.699499 0.737062 0.774624 0.129412 1.000000 0.000000 0.901961 0.823529 1.000000 0.807843 1.000000 1 0
-0.774624 0.812187 0.849750 0.823529 1.000000 0.807843 1.000000 0.196078 1.000000 0.000000 0.901961 1 0
-0.849750 0.874791 1.000000 0.196078 1.000000 0.000000 0.901961 0.031373 1.000000 0.000000 0.000000 1 0";
 
 struct GradientApp {
     opt: Opt,
@@ -584,6 +579,7 @@ fn example_help() -> io::Result<i32> {
     ga.run()?;
 
     writeln!(stdout, "Neon_Green.ggr \x1B[1mNeon Green\x1B[0m")?;
+    const GGR_SAMPLE: &str = include_str!("../data/Neon_Green.ggr");
     let color = Color::new(0.0, 0.0, 0.0, 1.0);
     let grad = colorgrad::GimpGradient::new(BufReader::new(GGR_SAMPLE.as_bytes()), &color, &color)
         .unwrap();
@@ -621,99 +617,4 @@ fn main() {
             exit(1);
         }
     }
-}
-
-#[test]
-fn verify_cli() {
-    use clap::CommandFactory;
-    Opt::command().debug_assert()
-}
-
-fn blend_color(fg: &Color, bg: &Color) -> Color {
-    Color::new(
-        ((1.0 - fg.a) * bg.r) + (fg.a * fg.r),
-        ((1.0 - fg.a) * bg.g) + (fg.a * fg.g),
-        ((1.0 - fg.a) * bg.b) + (fg.a * fg.b),
-        1.0,
-    )
-}
-
-// Reference http://www.w3.org/TR/2008/REC-WCAG20-20081211/#relativeluminancedef
-fn color_luminance(col: &Color) -> f32 {
-    fn lum(t: f32) -> f32 {
-        if t <= 0.03928 {
-            t / 12.92
-        } else {
-            ((t + 0.055) / 1.055).powf(2.4)
-        }
-    }
-
-    0.2126 * lum(col.r) + 0.7152 * lum(col.g) + 0.0722 * lum(col.b)
-}
-
-fn format_alpha(a: f32) -> String {
-    let s = format!(",{:.2}%", a * 100.0);
-    if s.starts_with(",100") {
-        return "".to_string();
-    }
-    s
-}
-
-fn format_color(col: &Color, format: OutputColor) -> String {
-    match format {
-        OutputColor::Hex => col.to_hex_string(),
-
-        OutputColor::Rgb => {
-            format!(
-                "rgb({:.2}%,{:.2}%,{:.2}%{})",
-                col.r * 100.0,
-                col.g * 100.0,
-                col.b * 100.0,
-                format_alpha(col.a)
-            )
-        }
-
-        OutputColor::Rgb255 => {
-            let [r, g, b, _] = col.to_rgba8();
-            format!("rgb({r},{g},{b}{})", format_alpha(col.a))
-        }
-
-        OutputColor::Hsl => {
-            let [h, s, l, a] = col.to_hsla();
-            format!(
-                "hsl({:.2},{:.2}%,{:.2}%{})",
-                h,
-                s * 100.0,
-                l * 100.0,
-                format_alpha(a)
-            )
-        }
-
-        OutputColor::Hsv => {
-            let [h, s, v, a] = col.to_hsva();
-            format!(
-                "hsv({:.2},{:.2}%,{:.2}%{})",
-                h,
-                s * 100.0,
-                v * 100.0,
-                format_alpha(a)
-            )
-        }
-
-        OutputColor::Hwb => {
-            let [h, w, b, a] = col.to_hwba();
-            format!(
-                "hwb({:.2},{:.2}%,{:.2}%{})",
-                h,
-                w * 100.0,
-                b * 100.0,
-                format_alpha(a)
-            )
-        }
-    }
-}
-
-// Map t from range [a, b] to range [c, d]
-fn remap(t: f32, a: f32, b: f32, c: f32, d: f32) -> f32 {
-    (t - a) * ((d - c) / (b - a)) + c
 }

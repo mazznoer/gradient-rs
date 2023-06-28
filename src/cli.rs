@@ -134,3 +134,9 @@ pub struct Opt {
     #[arg(short = 'a', long)]
     pub array: bool,
 }
+
+#[test]
+fn verify_cli() {
+    use clap::CommandFactory;
+    Opt::command().debug_assert()
+}
