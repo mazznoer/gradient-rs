@@ -53,7 +53,6 @@ const EXTRA_LONG_HELP: &str = "\x1B[1;4mUsage Examples:\x1B[0m
 
 #[derive(Clone, Default, Parser)]
 #[command(name = "gradient", author, version, about, after_help = EXTRA_HELP, after_long_help = EXTRA_LONG_HELP)]
-#[command(arg_required_else_help(true))]
 pub struct Opt {
     /// Lists all available preset gradient names
     #[arg(short = 'l', long, help_heading = Some("PRESET GRADIENT"))]

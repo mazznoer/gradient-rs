@@ -137,16 +137,17 @@ impl GradientApp {
 
     fn run(&mut self) -> io::Result<i32> {
         if self.opt.list_presets {
+            let opt = Opt {
+                width: Some(80),
+                height: Some(1),
+                ..Default::default()
+            };
+            let mut ga = GradientApp::new(opt, io::stdout());
+
             for name in &PRESET_NAMES {
                 writeln!(self.stdout, "{name}")?;
-                let opt = Opt {
-                    preset: Some(name.to_string()),
-                    width: Some(80),
-                    height: Some(1),
-                    ..Default::default()
-                };
-                let mut ga = GradientApp::new(opt, io::stdout());
-                ga.run()?;
+                ga.opt.preset = Some(name.to_string());
+                ga.preset_gradient()?;
             }
 
             return Ok(0);
@@ -163,11 +164,6 @@ impl GradientApp {
         if self.opt.file.is_some() {
             return self.file_gradient();
         }
-
-        writeln!(
-            self.stdout,
-            "\x1B[38;5;9merror:\x1B[39m Specify gradient using -p / --preset, -c / --custom or -f / --file\n"
-        )?;
 
         example_help()?;
         Ok(1)
@@ -533,70 +529,65 @@ fn example_help() -> io::Result<i32> {
             .collect()
     }
 
+    fn bold(s: &str) -> String {
+        format!("\x1B[1m{s}\x1B[0m")
+    }
+
+    let prompt = "\u{21AA} ";
     let mut stdout = io::stdout();
 
-    let mut opt = Opt {
+    writeln!(
+        stdout,
+        "{} Specify gradient using --preset, --custom, --css or --file\n",
+        bold("INFO:")
+    )?;
+    writeln!(stdout, "{}", bold("EXAMPLES:"))?;
+    writeln!(stdout, "{prompt} gradient --preset rainbow")?;
+
+    let opt = Opt {
         preset: Some("rainbow".to_string()),
         width: Some(80),
         ..Default::default()
     };
-
-    writeln!(stdout, "\x1B[1mEXAMPLES:\x1B[0m\n")?;
-
-    writeln!(
-        stdout,
-        "\x1B[38;5;10m\u{21AA}\x1B[39m  gradient --preset rainbow"
-    )?;
-    let mut ga = GradientApp::new(opt.clone(), io::stdout());
+    let mut ga = GradientApp::new(opt, io::stdout());
     ga.run()?;
 
     writeln!(
         stdout,
-        "\x1B[38;5;10m\u{21AA}\x1B[39m  gradient --preset turbo"
+        "{prompt} gradient --custom C41189 'rgb(0,191,255)' gold 'hsv(91,88%,50%)'"
     )?;
-    opt.preset = Some("turbo".to_string());
-    let mut ga = GradientApp::new(opt.clone(), io::stdout());
-    ga.run()?;
-
-    writeln!(
-        stdout,
-        "\x1B[38;5;10m\u{21AA}\x1B[39m  gradient --custom C41189 'rgb(0,191,255)' gold 'hsv(91,88%,50%)'"
-    )?;
-    opt.preset = None;
-    opt.custom = Some(parse_colors(&[
+    ga.opt.preset = None;
+    ga.opt.custom = Some(parse_colors(&[
         "C41189",
         "rgb(0,191,255)",
         "gold",
         "hsv(91,88%,50%)",
     ]));
-    let mut ga = GradientApp::new(opt.clone(), io::stdout());
     ga.run()?;
 
-    writeln!(
-        stdout,
-        "\x1B[38;5;10m\u{21AA}\x1B[39m  gradient --file Test.svg Neon_Green.ggr"
-    )?;
-
-    writeln!(stdout, "Test.svg \x1B[1m#purple-gradient\x1B[0m")?;
-    opt.custom = Some(parse_colors(&["4a1578", "c5a8de"]));
-    let mut ga = GradientApp::new(opt.clone(), io::stdout());
+    writeln!(stdout, "{prompt} gradient --css 'white, 25%, blue'")?;
+    ga.opt.custom = None;
+    ga.opt.css = Some("white, 25%, blue".to_string());
     ga.run()?;
 
-    writeln!(stdout, "Neon_Green.ggr \x1B[1mNeon Green\x1B[0m")?;
+    writeln!(stdout, "{prompt} gradient --file Test.svg Neon_Green.ggr")?;
+    writeln!(stdout, "Test.svg {}", bold("#purple-gradient"))?;
+    ga.opt.css = None;
+    ga.opt.custom = Some(parse_colors(&["4a1578", "c5a8de"]));
+    ga.run()?;
+
+    writeln!(stdout, "Neon_Green.ggr {}", bold("Neon Green"))?;
     const GGR_SAMPLE: &str = include_str!("../data/Neon_Green.ggr");
-    let color = Color::new(0.0, 0.0, 0.0, 1.0);
+    let color = Color::default();
     let grad = colorgrad::GimpGradient::new(BufReader::new(GGR_SAMPLE.as_bytes()), &color, &color)
         .unwrap();
-    ga.display_gradient(Box::new(grad) as Box<dyn Gradient>)?;
+    ga.display_gradient(Box::new(grad))?;
 
-    writeln!(
-        stdout,
-        "\x1B[38;5;10m\u{21AA}\x1B[39m  gradient --preset viridis --take 10"
-    )?;
-    opt.custom = None;
-    opt.preset = Some("viridis".to_string());
-    opt.take = Some(10);
-    let mut ga = GradientApp::new(opt, io::stdout());
+    writeln!(stdout, "{prompt} gradient --preset viridis --take 10")?;
+    ga.opt.custom = None;
+    ga.opt.preset = Some("viridis".to_string());
+    ga.opt.take = Some(10);
+    ga.output_mode = OutputMode::ColorsN;
     ga.run()?;
 
     Ok(1)
