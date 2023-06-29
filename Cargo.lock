@@ -76,9 +76,9 @@ checksum = "50d30906286121d95be3d479533b458f87493b30a4b5f79a607db8f5d11aa91f"
 
 [[package]]
 name = "clap"
-version = "4.3.8"
+version = "4.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9394150f5b4273a1763355bd1c2ec54cc5a2593f790587bcd6b2c947cfa9211"
+checksum = "bba77a07e4489fb41bd90e8d4201c3eb246b3c2c9ea2ba0bddd6c1d1df87db7d"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -87,9 +87,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.3.8"
+version = "4.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9a78fbdd3cc2914ddf37ba444114bc7765bbdcb55ec9cbe6fa054f0137400717"
+checksum = "2c9b4a88bb4bc35d3d6f65a21b0f0bafe9c894fa00978de242c555ec28bea1c0"
 dependencies = [
  "anstream",
  "anstyle",
@@ -135,7 +135,7 @@ checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
 [[package]]
 name = "colorgrad"
 version = "0.7.0"
-source = "git+https://github.com/mazznoer/colorgrad-rs.git#377f8dacf33f78937767e2b86c993729d9d076a9"
+source = "git+https://github.com/mazznoer/colorgrad-rs.git#7593681099a3bc2039b3d664abc78b4d25ba277d"
 dependencies = [
  "csscolorparser",
 ]
@@ -143,7 +143,7 @@ dependencies = [
 [[package]]
 name = "csscolorparser"
 version = "0.6.2"
-source = "git+https://github.com/mazznoer/csscolorparser-rs.git#f5cfcc6a52bf1f84da492fec7c596882afb852df"
+source = "git+https://github.com/mazznoer/csscolorparser-rs.git#6501cbbb5d6e60b139c2f6f59ad980030f7c747c"
 dependencies = [
  "lab",
  "phf",
@@ -423,9 +423,9 @@ dependencies = [
 
 [[package]]
 name = "windows-targets"
-version = "0.48.0"
+version = "0.48.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b1eb6f0cd7c80c79759c929114ef071b87354ce476d9d94271031c0497adfd5"
+checksum = "05d4b17490f70499f20b9e791dcf6a299785ce8af4d709018206dc5b4953e95f"
 dependencies = [
  "windows_aarch64_gnullvm",
  "windows_aarch64_msvc",

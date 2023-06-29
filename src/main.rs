@@ -156,7 +156,7 @@ impl GradientApp {
             return self.preset_gradient();
         }
 
-        if self.opt.custom.is_some() {
+        if self.opt.custom.is_some() || self.opt.css.is_some() {
             return self.custom_gradient();
         }
 
@@ -234,10 +234,14 @@ impl GradientApp {
     fn custom_gradient(&mut self) -> io::Result<i32> {
         let mut gb = colorgrad::GradientBuilder::new();
 
-        gb.colors(self.opt.custom.as_ref().unwrap());
+        if let Some(ref css_gradient) = self.opt.css {
+            gb.css(css_gradient);
+        } else {
+            gb.colors(self.opt.custom.as_ref().unwrap());
 
-        if let Some(ref pos) = self.opt.position {
-            gb.domain(pos);
+            if let Some(ref pos) = self.opt.position {
+                gb.domain(pos);
+            }
         }
 
         gb.mode(match self.opt.blend_mode {

@@ -71,6 +71,10 @@ pub struct Opt {
     #[arg(short = 'P', long, num_args = 2.., value_name = "FLOAT", help_heading = Some("CUSTOM GRADIENT"))]
     pub position: Option<Vec<f32>>,
 
+    /// Custom gradient using CSS gradient format
+    #[arg(long, value_name = "CSS-GRADIENT", help_heading = Some("CUSTOM GRADIENT"))]
+    pub css: Option<String>,
+
     /// Custom gradient blending mode [default: oklab]
     #[arg(short = 'm', long, value_enum, value_name = "COLOR-SPACE", help_heading = Some("CUSTOM GRADIENT"))]
     pub blend_mode: Option<BlendMode>,
