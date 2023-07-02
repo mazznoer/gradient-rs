@@ -57,7 +57,7 @@ struct Config {
     is_stdout: bool,
     use_solid_bg: bool,
     background: Color,
-    cb_color: Vec<Color>,
+    cb_color: [Color; 2],
     term_width: usize,
     width: usize,
     height: usize,
@@ -94,9 +94,9 @@ impl GradientApp {
         };
 
         let cb_color = if let Some(ref c) = opt.cb_color {
-            c.clone()
+            [c[0].clone(), c[1].clone()]
         } else {
-            vec![
+            [
                 Color::new(0.05, 0.05, 0.05, 1.0),
                 Color::new(0.20, 0.20, 0.20, 1.0),
             ]
@@ -308,7 +308,7 @@ impl GradientApp {
                             write!(self.stdout, "{}", &path.display())?;
                         }
 
-                        let f = File::open(&path).unwrap();
+                        let f = File::open(&path)?;
 
                         match colorgrad::GimpGradient::new(
                             BufReader::new(f),
@@ -321,7 +321,7 @@ impl GradientApp {
                                     writeln!(self.stdout, " \x1B[1m{}\x1B[0m", grad.name())?;
                                 }
 
-                                self.handle_output(Box::new(grad) as Box<dyn Gradient>)?;
+                                self.handle_output(Box::new(grad))?;
                             }
 
                             Err(err) => {
@@ -364,7 +364,7 @@ impl GradientApp {
                                 writeln!(self.stdout, "{filename} \x1B[1m{id}\x1B[0m")?;
                             }
 
-                            self.handle_output(Box::new(grad) as Box<dyn Gradient>)?;
+                            self.handle_output(Box::new(grad))?;
 
                             if stop {
                                 break;
@@ -403,8 +403,7 @@ impl GradientApp {
     fn display_gradient(&mut self, grad: Box<dyn Gradient>) -> io::Result<i32> {
         let (dmin, dmax) = grad.domain();
         let w2 = (self.cfg.width * 2 - 1) as f32;
-        let cb_0 = &self.cfg.cb_color[0];
-        let cb_1 = &self.cfg.cb_color[1];
+        let [cb_0, cb_1] = &self.cfg.cb_color;
 
         for y in 0..self.cfg.height {
             let mut i = 0;
@@ -442,32 +441,30 @@ impl GradientApp {
 
     fn display_colors(&mut self, colors: &[Color]) -> io::Result<i32> {
         if self.opt.array {
-            let mut cols = Vec::new();
+            let mut cols = Vec::with_capacity(colors.len());
 
-            for col in colors {
-                cols.push(if self.cfg.use_solid_bg {
+            for (i, col) in colors.iter().enumerate() {
+                cols[i] = if self.cfg.use_solid_bg {
                     format_color(
                         &blend_color(col, &self.cfg.background),
                         self.cfg.output_format,
                     )
                 } else {
                     format_color(col, self.cfg.output_format)
-                });
+                };
             }
 
             writeln!(self.stdout, "{cols:?}")?;
         } else if self.cfg.is_stdout {
             let mut width = self.cfg.term_width;
+            let black = Color::new(0.0, 0.0, 0.0, 1.0);
 
             for col in colors {
                 let (col, bg) = if self.cfg.use_solid_bg {
                     let c = blend_color(col, &self.cfg.background);
                     (c.clone(), c)
                 } else {
-                    (
-                        col.clone(),
-                        blend_color(col, &Color::new(0.0, 0.0, 0.0, 1.0)),
-                    )
+                    (col.clone(), blend_color(col, &black))
                 };
 
                 let s = format_color(&col, self.cfg.output_format);
