@@ -178,6 +178,7 @@ dependencies = [
  "clap",
  "clap_complete",
  "colorgrad",
+ "csscolorparser",
  "svg",
  "terminal_size",
 ]

@@ -25,6 +25,7 @@ atty = "0.2.14"
 clap = { version = "4.3.8", features = ["derive", "wrap_help"] }
 #colorgrad = "0.6.2"
 colorgrad = { git = "https://github.com/mazznoer/colorgrad-rs.git", features = ["lab", "ggr"] }
+csscolorparser = { git = "https://github.com/mazznoer/csscolorparser-rs.git" }
 svg = "0.13.1"
 terminal_size = "0.2.6"
 

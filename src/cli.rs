@@ -136,6 +136,10 @@ pub struct Opt {
     /// Print colors from --take or --sample, as array
     #[arg(short = 'a', long)]
     pub array: bool,
+
+    /// Lists all CSS named colors
+    #[arg(long)]
+    pub list_named_colors: bool,
 }
 
 #[test]

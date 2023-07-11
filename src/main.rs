@@ -153,6 +153,17 @@ impl GradientApp {
             return Ok(0);
         }
 
+        if self.opt.list_named_colors {
+            for (&name, &[r, g, b]) in csscolorparser::NAMED_COLORS.entries() {
+                writeln!(
+                    self.stdout,
+                    "\x1B[48;2;{r};{g};{b}m   \x1B[49;38;2;{r};{g};{b}m #{r:02x}{g:02x}{b:02x}\x1B[39m {name}"
+                )?;
+            }
+
+            return Ok(0);
+        }
+
         if self.opt.preset.is_some() {
             return self.preset_gradient();
         }
