@@ -4,54 +4,13 @@ use std::io::{self, BufReader, Write};
 use std::{ffi::OsStr, fs::File, process::exit};
 
 mod cli;
-use cli::{BlendMode, Interpolation, Opt, OutputColor};
+use cli::{BlendMode, Interpolation, Opt, OutputColor, PRESET_NAMES};
 
 mod svg_gradient;
 use svg_gradient::parse_svg;
 
 mod util;
 use util::{blend_color, color_luminance, format_color, remap};
-
-const PRESET_NAMES: [&str; 38] = [
-    "blues",
-    "br-bg",
-    "bu-gn",
-    "bu-pu",
-    "cividis",
-    "cool",
-    "cubehelix",
-    "gn-bu",
-    "greens",
-    "greys",
-    "inferno",
-    "magma",
-    "or-rd",
-    "oranges",
-    "pi-yg",
-    "plasma",
-    "pr-gn",
-    "pu-bu",
-    "pu-bu-gn",
-    "pu-or",
-    "pu-rd",
-    "purples",
-    "rainbow",
-    "rd-bu",
-    "rd-gy",
-    "rd-pu",
-    "rd-yl-bu",
-    "rd-yl-gn",
-    "reds",
-    "sinebow",
-    "spectral",
-    "turbo",
-    "viridis",
-    "warm",
-    "yl-gn",
-    "yl-gn-bu",
-    "yl-or-br",
-    "yl-or-rd",
-];
 
 struct Config {
     is_stdout: bool,

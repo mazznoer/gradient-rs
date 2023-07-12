@@ -27,6 +27,47 @@ pub enum OutputColor {
     Hwb,
 }
 
+pub const PRESET_NAMES: [&str; 38] = [
+    "blues",
+    "br-bg",
+    "bu-gn",
+    "bu-pu",
+    "cividis",
+    "cool",
+    "cubehelix",
+    "gn-bu",
+    "greens",
+    "greys",
+    "inferno",
+    "magma",
+    "or-rd",
+    "oranges",
+    "pi-yg",
+    "plasma",
+    "pr-gn",
+    "pu-bu",
+    "pu-bu-gn",
+    "pu-or",
+    "pu-rd",
+    "purples",
+    "rainbow",
+    "rd-bu",
+    "rd-gy",
+    "rd-pu",
+    "rd-yl-bu",
+    "rd-yl-gn",
+    "reds",
+    "sinebow",
+    "spectral",
+    "turbo",
+    "viridis",
+    "warm",
+    "yl-gn",
+    "yl-gn-bu",
+    "yl-or-br",
+    "yl-or-rd",
+];
+
 const EXTRA_HELP: &str =
     "\x1B[1mCOLOR\x1B[0m can be specified using CSS color format <https://www.w3.org/TR/css-color-4/>.";
 
@@ -59,7 +100,7 @@ pub struct Opt {
     pub list_presets: bool,
 
     /// Use the preset gradient
-    #[arg(short = 'p', long, value_name = "NAME", help_heading = Some("PRESET GRADIENT"))]
+    #[arg(short = 'p', long, value_parser = PRESET_NAMES, hide_possible_values = true, value_name = "NAME", help_heading = Some("PRESET GRADIENT"))]
     pub preset: Option<String>,
 
     /// Create custom gradient with the specified colors
