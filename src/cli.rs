@@ -104,7 +104,7 @@ pub struct Opt {
     pub preset: Option<String>,
 
     /// Create custom gradient with the specified colors
-    #[arg(short = 'c', long, num_args = 1.., value_name = "COLOR", conflicts_with = "preset", help_heading = Some("CUSTOM GRADIENT"))]
+    #[arg(short = 'c', long, num_args = 1.., value_delimiter = ';', value_name = "COLOR", conflicts_with = "preset", help_heading = Some("CUSTOM GRADIENT"))]
     pub custom: Option<Vec<Color>>,
 
     /// Custom gradient color position
