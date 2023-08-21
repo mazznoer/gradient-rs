@@ -108,7 +108,7 @@ pub struct Opt {
     pub custom: Option<Vec<Color>>,
 
     /// Custom gradient color position
-    #[arg(short = 'P', long, num_args = 2.., value_name = "FLOAT", help_heading = Some("CUSTOM GRADIENT"))]
+    #[arg(short = 'P', long, allow_negative_numbers = true, num_args = 2.., value_name = "FLOAT", help_heading = Some("CUSTOM GRADIENT"))]
     pub position: Option<Vec<f32>>,
 
     /// Custom gradient using CSS gradient format
@@ -167,7 +167,7 @@ pub struct Opt {
     pub take: Option<usize>,
 
     /// Get color(s) at specific position
-    #[arg(short = 's', long, value_name = "FLOAT", num_args = 1..)]
+    #[arg(short = 's', long, allow_negative_numbers = true, value_name = "FLOAT", num_args = 1..)]
     pub sample: Option<Vec<f32>>,
 
     /// Output color format
