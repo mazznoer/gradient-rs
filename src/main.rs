@@ -12,17 +12,6 @@ use svg_gradient::parse_svg;
 mod util;
 use util::{blend_color, color_luminance, format_color, remap};
 
-struct Config {
-    is_stdout: bool,
-    use_solid_bg: bool,
-    background: Color,
-    cb_color: [Color; 2],
-    term_width: usize,
-    width: usize,
-    height: usize,
-    output_format: OutputColor,
-}
-
 #[derive(PartialEq)]
 enum OutputMode {
     Gradient,
@@ -32,9 +21,16 @@ enum OutputMode {
 
 struct GradientApp {
     opt: Opt,
-    cfg: Config,
     stdout: io::Stdout,
+    is_stdout: bool,
     output_mode: OutputMode,
+    output_format: OutputColor,
+    use_solid_bg: bool,
+    background: Color,
+    cb_color: [Color; 2],
+    term_width: usize,
+    width: usize,
+    height: usize,
 }
 
 impl GradientApp {
@@ -67,17 +63,6 @@ impl GradientApp {
             .max(10)
             .min(term_width.unwrap_or(1000));
 
-        let cfg = Config {
-            is_stdout: atty::is(atty::Stream::Stdout),
-            use_solid_bg: opt.background.is_some(),
-            background,
-            cb_color,
-            term_width: term_width.unwrap_or(80),
-            width,
-            height: opt.height.unwrap_or(2).max(1).min(50),
-            output_format: opt.format.unwrap_or(OutputColor::Hex),
-        };
-
         let output_mode = if opt.take.is_some() {
             OutputMode::ColorsN
         } else if opt.sample.is_some() {
@@ -87,17 +72,24 @@ impl GradientApp {
         };
 
         Self {
-            opt,
-            cfg,
             output_mode,
             stdout,
+            is_stdout: atty::is(atty::Stream::Stdout),
+            use_solid_bg: opt.background.is_some(),
+            background,
+            cb_color,
+            term_width: term_width.unwrap_or(80),
+            width,
+            height: opt.height.unwrap_or(2).clamp(1, 50),
+            output_format: opt.format.unwrap_or(OutputColor::Hex),
+            opt,
         }
     }
 
     fn run(&mut self) -> io::Result<i32> {
         if self.opt.list_presets {
-            self.cfg.width = self.cfg.term_width;
-            self.cfg.height = 1;
+            self.width = self.term_width.min(80);
+            self.height = 2;
 
             for name in &PRESET_NAMES {
                 writeln!(self.stdout, "{name}")?;
@@ -270,7 +262,7 @@ impl GradientApp {
             if let Some(ext) = path.extension().and_then(OsStr::to_str) {
                 match ext.to_lowercase().as_ref() {
                     "ggr" => {
-                        if self.cfg.is_stdout || (self.output_mode == OutputMode::Gradient) {
+                        if self.is_stdout || (self.output_mode == OutputMode::Gradient) {
                             write!(self.stdout, "{}", &path.display())?;
                         }
 
@@ -282,8 +274,7 @@ impl GradientApp {
                             &ggr_bg_color,
                         ) {
                             Ok(grad) => {
-                                if self.cfg.is_stdout || (self.output_mode == OutputMode::Gradient)
-                                {
+                                if self.is_stdout || (self.output_mode == OutputMode::Gradient) {
                                     writeln!(self.stdout, " \x1B[1m{}\x1B[0m", grad.name())?;
                                 }
 
@@ -291,8 +282,7 @@ impl GradientApp {
                             }
 
                             Err(err) => {
-                                if self.cfg.is_stdout || (self.output_mode == OutputMode::Gradient)
-                                {
+                                if self.is_stdout || (self.output_mode == OutputMode::Gradient) {
                                     writeln!(self.stdout, "\n  \x1B[31m{err}\x1B[39m")?;
                                 }
                             }
@@ -304,7 +294,7 @@ impl GradientApp {
                         let gradients =
                             parse_svg(path.into_os_string().into_string().unwrap().as_ref());
 
-                        if (self.cfg.is_stdout || (self.output_mode == OutputMode::Gradient))
+                        if (self.is_stdout || (self.output_mode == OutputMode::Gradient))
                             && gradients.is_empty()
                         {
                             writeln!(self.stdout, "{filename}")?;
@@ -326,7 +316,7 @@ impl GradientApp {
                                 ("".to_string(), false)
                             };
 
-                            if self.cfg.is_stdout || (self.output_mode == OutputMode::Gradient) {
+                            if self.is_stdout || (self.output_mode == OutputMode::Gradient) {
                                 writeln!(self.stdout, "{filename} \x1B[1m{id}\x1B[0m")?;
                             }
 
@@ -368,15 +358,15 @@ impl GradientApp {
 
     fn display_gradient(&mut self, grad: Box<dyn Gradient>) -> io::Result<i32> {
         let (dmin, dmax) = grad.domain();
-        let w2 = (self.cfg.width * 2 - 1) as f32;
-        let [cb_0, cb_1] = &self.cfg.cb_color;
+        let w2 = (self.width * 2 - 1) as f32;
+        let [cb_0, cb_1] = &self.cb_color;
 
-        for y in 0..self.cfg.height {
+        for y in 0..self.height {
             let mut i = 0;
 
-            for x in 0..self.cfg.width {
-                let bg_color = if self.cfg.use_solid_bg {
-                    &self.cfg.background
+            for x in 0..self.width {
+                let bg_color = if self.use_solid_bg {
+                    &self.background
                 } else if ((x / 2) & 1) ^ (y & 1) == 0 {
                     cb_0
                 } else {
@@ -410,34 +400,31 @@ impl GradientApp {
             let mut cols = Vec::with_capacity(colors.len());
 
             for (i, col) in colors.iter().enumerate() {
-                cols[i] = if self.cfg.use_solid_bg {
-                    format_color(
-                        &blend_color(col, &self.cfg.background),
-                        self.cfg.output_format,
-                    )
+                cols[i] = if self.use_solid_bg {
+                    format_color(&blend_color(col, &self.background), self.output_format)
                 } else {
-                    format_color(col, self.cfg.output_format)
+                    format_color(col, self.output_format)
                 };
             }
 
             writeln!(self.stdout, "{cols:?}")?;
-        } else if self.cfg.is_stdout {
-            let mut width = self.cfg.term_width;
+        } else if self.is_stdout {
+            let mut width = self.term_width;
             let black = Color::new(0.0, 0.0, 0.0, 1.0);
 
             for col in colors {
-                let (col, bg) = if self.cfg.use_solid_bg {
-                    let c = blend_color(col, &self.cfg.background);
+                let (col, bg) = if self.use_solid_bg {
+                    let c = blend_color(col, &self.background);
                     (c.clone(), c)
                 } else {
                     (col.clone(), blend_color(col, &black))
                 };
 
-                let s = format_color(&col, self.cfg.output_format);
+                let s = format_color(&col, self.output_format);
 
                 if width < s.len() {
                     writeln!(self.stdout)?;
-                    width = self.cfg.term_width;
+                    width = self.term_width;
                 }
 
                 let [r, g, b, _] = bg.to_rgba8();
@@ -465,17 +452,14 @@ impl GradientApp {
             writeln!(self.stdout)?;
         } else {
             for col in colors {
-                if self.cfg.use_solid_bg {
+                if self.use_solid_bg {
                     writeln!(
                         self.stdout,
                         "{}",
-                        format_color(
-                            &blend_color(col, &self.cfg.background),
-                            self.cfg.output_format
-                        )
+                        format_color(&blend_color(col, &self.background), self.output_format)
                     )?;
                 } else {
-                    writeln!(self.stdout, "{}", format_color(col, self.cfg.output_format))?;
+                    writeln!(self.stdout, "{}", format_color(col, self.output_format))?;
                 }
             }
         }
@@ -496,8 +480,8 @@ impl GradientApp {
         }
 
         let prompt = "\u{21AA} ";
-        self.cfg.width = self.cfg.term_width;
-        self.cfg.height = 2;
+        self.width = self.term_width.min(80);
+        self.height = 2;
 
         writeln!(
             self.stdout,
