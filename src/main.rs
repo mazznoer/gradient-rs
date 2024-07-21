@@ -96,17 +96,13 @@ impl GradientApp {
 
     fn run(&mut self) -> io::Result<i32> {
         if self.opt.list_presets {
-            let opt = Opt {
-                width: Some(80),
-                height: Some(1),
-                ..Default::default()
-            };
-            let mut ga = GradientApp::new(opt, io::stdout());
+            self.cfg.width = self.cfg.term_width;
+            self.cfg.height = 1;
 
             for name in &PRESET_NAMES {
                 writeln!(self.stdout, "{name}")?;
-                ga.opt.preset = Some(name.to_string());
-                ga.preset_gradient()?;
+                self.opt.preset = Some(name.to_string());
+                self.preset_gradient()?;
             }
 
             return Ok(0);
@@ -135,7 +131,7 @@ impl GradientApp {
             return self.file_gradient();
         }
 
-        example_help()?;
+        self.example_help()?;
         Ok(1)
     }
 
@@ -486,78 +482,77 @@ impl GradientApp {
 
         Ok(0)
     }
-}
 
-fn example_help() -> io::Result<i32> {
-    fn parse_colors(colors: &[&str]) -> Vec<Color> {
-        colors
-            .iter()
-            .map(|s| Color::from_html(s).unwrap())
-            .collect()
+    fn example_help(&mut self) -> io::Result<i32> {
+        fn parse_colors(colors: &[&str]) -> Vec<Color> {
+            colors
+                .iter()
+                .map(|s| Color::from_html(s).unwrap())
+                .collect()
+        }
+
+        fn bold(s: &str) -> String {
+            format!("\x1B[1m{s}\x1B[0m")
+        }
+
+        let prompt = "\u{21AA} ";
+        self.cfg.width = self.cfg.term_width;
+        self.cfg.height = 2;
+
+        writeln!(
+            self.stdout,
+            "{} Specify gradient using --preset, --custom, --css or --file\n",
+            bold("INFO:")
+        )?;
+        writeln!(self.stdout, "{}", bold("EXAMPLES:"))?;
+        writeln!(self.stdout, "{prompt} gradient --preset rainbow")?;
+        self.opt.preset = Some("rainbow".to_string());
+        self.preset_gradient()?;
+
+        writeln!(
+            self.stdout,
+            "{prompt} gradient --custom C41189 'rgb(0,191,255)' gold 'hsv(91,88%,50%)'"
+        )?;
+        self.opt.preset = None;
+        self.opt.custom = Some(parse_colors(&[
+            "C41189",
+            "rgb(0,191,255)",
+            "gold",
+            "hsv(91,88%,50%)",
+        ]));
+        self.custom_gradient()?;
+
+        writeln!(self.stdout, "{prompt} gradient --css 'white, 25%, blue'")?;
+        self.opt.custom = None;
+        self.opt.css = Some("white, 25%, blue".to_string());
+        self.custom_gradient()?;
+
+        writeln!(
+            self.stdout,
+            "{prompt} gradient --file Test.svg Neon_Green.ggr"
+        )?;
+        writeln!(self.stdout, "Test.svg {}", bold("#purple-gradient"))?;
+        self.opt.css = None;
+        self.opt.custom = Some(parse_colors(&["4a1578", "c5a8de"]));
+        self.custom_gradient()?;
+
+        writeln!(self.stdout, "Neon_Green.ggr {}", bold("Neon Green"))?;
+        const GGR_SAMPLE: &str = include_str!("../data/Neon_Green.ggr");
+        let color = Color::default();
+        let grad =
+            colorgrad::GimpGradient::new(BufReader::new(GGR_SAMPLE.as_bytes()), &color, &color)
+                .unwrap();
+        self.display_gradient(Box::new(grad))?;
+
+        writeln!(self.stdout, "{prompt} gradient --preset viridis --take 10")?;
+        self.opt.custom = None;
+        self.opt.preset = Some("viridis".to_string());
+        self.opt.take = Some(10);
+        self.output_mode = OutputMode::ColorsN;
+        self.preset_gradient()?;
+
+        Ok(0)
     }
-
-    fn bold(s: &str) -> String {
-        format!("\x1B[1m{s}\x1B[0m")
-    }
-
-    let prompt = "\u{21AA} ";
-    let mut stdout = io::stdout();
-
-    writeln!(
-        stdout,
-        "{} Specify gradient using --preset, --custom, --css or --file\n",
-        bold("INFO:")
-    )?;
-    writeln!(stdout, "{}", bold("EXAMPLES:"))?;
-    writeln!(stdout, "{prompt} gradient --preset rainbow")?;
-
-    let opt = Opt {
-        preset: Some("rainbow".to_string()),
-        width: Some(80),
-        ..Default::default()
-    };
-    let mut ga = GradientApp::new(opt, io::stdout());
-    ga.run()?;
-
-    writeln!(
-        stdout,
-        "{prompt} gradient --custom C41189 'rgb(0,191,255)' gold 'hsv(91,88%,50%)'"
-    )?;
-    ga.opt.preset = None;
-    ga.opt.custom = Some(parse_colors(&[
-        "C41189",
-        "rgb(0,191,255)",
-        "gold",
-        "hsv(91,88%,50%)",
-    ]));
-    ga.run()?;
-
-    writeln!(stdout, "{prompt} gradient --css 'white, 25%, blue'")?;
-    ga.opt.custom = None;
-    ga.opt.css = Some("white, 25%, blue".to_string());
-    ga.run()?;
-
-    writeln!(stdout, "{prompt} gradient --file Test.svg Neon_Green.ggr")?;
-    writeln!(stdout, "Test.svg {}", bold("#purple-gradient"))?;
-    ga.opt.css = None;
-    ga.opt.custom = Some(parse_colors(&["4a1578", "c5a8de"]));
-    ga.run()?;
-
-    writeln!(stdout, "Neon_Green.ggr {}", bold("Neon Green"))?;
-    const GGR_SAMPLE: &str = include_str!("../data/Neon_Green.ggr");
-    let color = Color::default();
-    let grad = colorgrad::GimpGradient::new(BufReader::new(GGR_SAMPLE.as_bytes()), &color, &color)
-        .unwrap();
-    ga.display_gradient(Box::new(grad))?;
-
-    writeln!(stdout, "{prompt} gradient --preset viridis --take 10")?;
-    ga.opt.custom = None;
-    ga.opt.preset = Some("viridis".to_string());
-    ga.opt.take = Some(10);
-    ga.output_mode = OutputMode::ColorsN;
-    ga.run()?;
-
-    Ok(1)
 }
 
 fn main() {
