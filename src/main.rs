@@ -1,6 +1,6 @@
 use clap::Parser;
 use colorgrad::{preset, Color, Gradient};
-use std::io::{self, BufReader, Write};
+use std::io::{self, BufReader, IsTerminal, Write};
 use std::{ffi::OsStr, fs::File, process::exit};
 
 mod cli;
@@ -22,7 +22,7 @@ enum OutputMode {
 struct GradientApp {
     opt: Opt,
     stdout: io::Stdout,
-    is_stdout: bool,
+    is_terminal: bool,
     output_mode: OutputMode,
     output_format: OutputColor,
     use_solid_bg: bool,
@@ -71,10 +71,12 @@ impl GradientApp {
             OutputMode::Gradient
         };
 
+        let is_terminal = stdout.is_terminal();
+
         Self {
             output_mode,
             stdout,
-            is_stdout: atty::is(atty::Stream::Stdout),
+            is_terminal,
             use_solid_bg: opt.background.is_some(),
             background,
             cb_color,
@@ -262,7 +264,7 @@ impl GradientApp {
             if let Some(ext) = path.extension().and_then(OsStr::to_str) {
                 match ext.to_lowercase().as_ref() {
                     "ggr" => {
-                        if self.is_stdout || (self.output_mode == OutputMode::Gradient) {
+                        if self.is_terminal || (self.output_mode == OutputMode::Gradient) {
                             write!(self.stdout, "{}", &path.display())?;
                         }
 
@@ -274,7 +276,7 @@ impl GradientApp {
                             &ggr_bg_color,
                         ) {
                             Ok(grad) => {
-                                if self.is_stdout || (self.output_mode == OutputMode::Gradient) {
+                                if self.is_terminal || (self.output_mode == OutputMode::Gradient) {
                                     writeln!(self.stdout, " \x1B[1m{}\x1B[0m", grad.name())?;
                                 }
 
@@ -282,7 +284,7 @@ impl GradientApp {
                             }
 
                             Err(err) => {
-                                if self.is_stdout || (self.output_mode == OutputMode::Gradient) {
+                                if self.is_terminal || (self.output_mode == OutputMode::Gradient) {
                                     writeln!(self.stdout, "\n  \x1B[31m{err}\x1B[39m")?;
                                 }
                             }
@@ -294,7 +296,7 @@ impl GradientApp {
                         let gradients =
                             parse_svg(path.into_os_string().into_string().unwrap().as_ref());
 
-                        if (self.is_stdout || (self.output_mode == OutputMode::Gradient))
+                        if (self.is_terminal || (self.output_mode == OutputMode::Gradient))
                             && gradients.is_empty()
                         {
                             writeln!(self.stdout, "{filename}")?;
@@ -316,7 +318,7 @@ impl GradientApp {
                                 ("".to_string(), false)
                             };
 
-                            if self.is_stdout || (self.output_mode == OutputMode::Gradient) {
+                            if self.is_terminal || (self.output_mode == OutputMode::Gradient) {
                                 writeln!(self.stdout, "{filename} \x1B[1m{id}\x1B[0m")?;
                             }
 
@@ -408,7 +410,7 @@ impl GradientApp {
             }
 
             writeln!(self.stdout, "{cols:?}")?;
-        } else if self.is_stdout {
+        } else if self.is_terminal {
             let mut width = self.term_width;
             let black = Color::new(0.0, 0.0, 0.0, 1.0);
 

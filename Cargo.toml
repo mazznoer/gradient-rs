@@ -21,7 +21,6 @@ lto = true
 strip = true
 
 [dependencies]
-atty = "0.2.14"
 clap = { version = "4.5.9", features = ["derive", "wrap_help"] }
 colorgrad = { git = "https://github.com/mazznoer/colorgrad-rs.git", features = ["lab", "ggr"] }
 csscolorparser = { git = "https://github.com/mazznoer/csscolorparser-rs.git" }
