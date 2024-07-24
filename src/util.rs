@@ -9,17 +9,26 @@ pub fn blend_color(fg: &Color, bg: &Color) -> Color {
     )
 }
 
-// Reference http://www.w3.org/TR/2008/REC-WCAG20-20081211/#relativeluminancedef
-pub fn color_luminance(col: &Color) -> f32 {
-    fn lum(t: f32) -> f32 {
-        if t <= 0.03928 {
-            t / 12.92
-        } else {
-            ((t + 0.055) / 1.055).powf(2.4)
-        }
-    }
+pub fn blend_on(fg: &mut Color, bg: &Color) {
+    fg.r = ((1.0 - fg.a) * bg.r) + (fg.a * fg.r);
+    fg.g = ((1.0 - fg.a) * bg.g) + (fg.a * fg.g);
+    fg.b = ((1.0 - fg.a) * bg.b) + (fg.a * fg.b);
+    fg.a = 1.0;
+}
 
-    0.2126 * lum(col.r) + 0.7152 * lum(col.g) + 0.0722 * lum(col.b)
+pub fn fmt_color(col: &Color, cb: &[Color; 2], width: usize) -> String {
+    let mut ss = "".to_string();
+    for i in 0..width {
+        let ch = if (i & 1) == 0 { "\u{2580}" } else { "\u{2584}" };
+        let cl = blend_color(col, &cb[0]).to_rgba8();
+        let cr = blend_color(col, &cb[1]).to_rgba8();
+        ss.push_str(&format!(
+            "\x1B[38;2;{};{};{};48;2;{};{};{}m{}",
+            cl[0], cl[1], cl[2], cr[0], cr[1], cr[2], ch
+        ));
+    }
+    ss.push_str("\x1B[39;49m");
+    ss
 }
 
 fn format_alpha(a: f32) -> String {

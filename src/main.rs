@@ -10,7 +10,6 @@ mod svg_gradient;
 use svg_gradient::parse_svg;
 
 mod util;
-use util::{blend_color, color_luminance, format_color, remap};
 
 #[derive(PartialEq)]
 enum OutputMode {
@@ -341,18 +340,25 @@ impl GradientApp {
         match self.output_mode {
             OutputMode::Gradient => self.display_gradient(grad),
 
-            OutputMode::ColorsN => self.display_colors(&grad.colors(self.opt.take.unwrap())),
+            OutputMode::ColorsN => {
+                let mut colors = grad.colors(self.opt.take.unwrap());
+                if self.use_solid_bg {
+                    for col in &mut colors {
+                        util::blend_on(col, &self.background);
+                    }
+                }
+                self.display_colors(&colors)
+            }
 
             OutputMode::ColorsSample => {
-                let colors = self
-                    .opt
-                    .sample
-                    .as_ref()
-                    .unwrap()
-                    .iter()
-                    .map(|t| grad.at(*t))
-                    .collect::<Vec<_>>();
-
+                let mut colors = Vec::with_capacity(self.opt.sample.as_ref().unwrap().len());
+                for pos in self.opt.sample.as_ref().unwrap().iter() {
+                    let mut col = grad.at(*pos).clamp();
+                    if self.use_solid_bg {
+                        util::blend_on(&mut col, &self.background);
+                    }
+                    colors.push(col);
+                }
                 self.display_colors(&colors)
             }
         }
@@ -375,14 +381,14 @@ impl GradientApp {
                     cb_1
                 };
 
-                let col_l = grad.at(remap(i as f32, 0.0, w2, dmin, dmax));
+                let col_l = grad.at(util::remap(i as f32, 0.0, w2, dmin, dmax));
                 i += 1;
 
-                let col_r = grad.at(remap(i as f32, 0.0, w2, dmin, dmax));
+                let col_r = grad.at(util::remap(i as f32, 0.0, w2, dmin, dmax));
                 i += 1;
 
-                let col_l = blend_color(&col_l, bg_color).to_rgba8();
-                let col_r = blend_color(&col_r, bg_color).to_rgba8();
+                let col_l = util::blend_color(&col_l, bg_color).to_rgba8();
+                let col_r = util::blend_color(&col_r, bg_color).to_rgba8();
 
                 write!(
                     self.stdout,
@@ -400,72 +406,65 @@ impl GradientApp {
     fn display_colors(&mut self, colors: &[Color]) -> io::Result<i32> {
         if self.opt.array {
             let mut cols = Vec::with_capacity(colors.len());
-
-            for (i, col) in colors.iter().enumerate() {
-                cols[i] = if self.use_solid_bg {
-                    format_color(&blend_color(col, &self.background), self.output_format)
-                } else {
-                    format_color(col, self.output_format)
-                };
+            for col in colors {
+                cols.push(util::format_color(col, self.output_format));
             }
-
             writeln!(self.stdout, "{cols:?}")?;
-        } else if self.is_terminal {
-            let mut width = self.term_width;
-            let black = Color::new(0.0, 0.0, 0.0, 1.0);
-
-            for col in colors {
-                let (col, bg) = if self.use_solid_bg {
-                    let c = blend_color(col, &self.background);
-                    (c.clone(), c)
-                } else {
-                    (col.clone(), blend_color(col, &black))
-                };
-
-                let s = format_color(&col, self.output_format);
-
-                if width < s.len() {
-                    writeln!(self.stdout)?;
-                    width = self.term_width;
-                }
-
-                let [r, g, b, _] = bg.to_rgba8();
-
-                let fg = if color_luminance(&bg) < 0.3 {
-                    (255, 255, 255)
-                } else {
-                    (0, 0, 0)
-                };
-
-                write!(
-                    self.stdout,
-                    "\x1B[38;2;{};{};{};48;2;{};{};{}m{}\x1B[39;49m",
-                    fg.0, fg.1, fg.2, r, g, b, &s
-                )?;
-
-                width -= s.len();
-
-                if width >= 1 {
-                    write!(self.stdout, " ")?;
-                    width -= 1;
-                }
-            }
-
-            writeln!(self.stdout)?;
-        } else {
-            for col in colors {
-                if self.use_solid_bg {
-                    writeln!(
-                        self.stdout,
-                        "{}",
-                        format_color(&blend_color(col, &self.background), self.output_format)
-                    )?;
-                } else {
-                    writeln!(self.stdout, "{}", format_color(col, self.output_format))?;
-                }
-            }
+            return Ok(0);
         }
 
+        if self.is_terminal {
+            if self.output_format != OutputColor::Hex {
+                for col in colors {
+                    writeln!(
+                        self.stdout,
+                        "{} {}",
+                        util::fmt_color(col, &self.cb_color, 7),
+                        util::format_color(col, self.output_format)
+                    )?;
+                }
+                return Ok(0);
+            }
+
+            let mut buff0 = "".to_string();
+            let mut buff1 = "".to_string();
+            let last = colors.len() - 1;
+            let mut w = 0;
+
+            for (i, col) in colors.iter().enumerate() {
+                let hex = util::format_color(col, self.output_format);
+                let wc = hex.len();
+                buff0.push_str(&util::fmt_color(col, &self.cb_color, wc));
+                buff1.push_str(&hex);
+                w += wc;
+                if w < self.term_width {
+                    buff0.push(' ');
+                    buff1.push(' ');
+                    w += 1;
+                }
+                let nwc = if i == last {
+                    0
+                } else {
+                    util::format_color(&colors[i + 1], self.output_format).len()
+                };
+
+                if w + nwc > self.term_width || i == last {
+                    writeln!(self.stdout, "{}\n{}", buff0, buff1)?;
+                    buff0.clear();
+                    buff1.clear();
+                    w = 0;
+                }
+            }
+            return Ok(0);
+        }
+
+        for col in colors {
+            writeln!(
+                self.stdout,
+                "{}",
+                util::format_color(col, self.output_format)
+            )?;
+        }
         Ok(0)
     }
 

@@ -17,7 +17,7 @@ pub enum Interpolation {
     CatmullRom,
 }
 
-#[derive(Copy, Clone, ValueEnum)]
+#[derive(Copy, Clone, PartialEq, ValueEnum)]
 pub enum OutputColor {
     Hex,
     Rgb,
