@@ -22,12 +22,12 @@ strip = true
 
 [dependencies]
 clap = { version = "4.5.9", features = ["derive", "wrap_help"] }
-colorgrad = { git = "https://github.com/mazznoer/colorgrad-rs.git", features = ["lab", "ggr"] }
-csscolorparser = { git = "https://github.com/mazznoer/csscolorparser-rs.git" }
+colorgrad = { version = "0.7.0", features = ["lab", "ggr"] }
+csscolorparser = { version = "0.7.0" }
 svg = "0.17.0"
 terminal_size = "0.3.0"
 
 [build-dependencies]
 clap = { version = "4.5.9", features = ["derive", "wrap_help"] }
 clap_complete = "4.5.8"
-colorgrad = { git = "https://github.com/mazznoer/colorgrad-rs.git", features = ["lab", "ggr"] }
+colorgrad = { version = "0.7.0", features = ["lab", "ggr"] }
