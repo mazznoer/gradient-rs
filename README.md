@@ -1,6 +1,6 @@
 # `gradient`
 
-[![Build Status](https://github.com/mazznoer/gradient-rs/workflows/Rust/badge.svg)](https://github.com/mazznoer/gradient-rs/actions)
+[![Build Status](https://github.com/mazznoer/gradient-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/mazznoer/gradient-rs/actions)
 [![crates.io](https://img.shields.io/crates/v/gradient.svg)](https://crates.io/crates/gradient)
 
 A command-line tool for playing with color gradients.
@@ -21,7 +21,7 @@ Pre-compiled binaries for Linux, macOS and Windows is avaliable on [release page
 
 ### Cargo
 
-`gradient` can be installed with [cargo](https://www.rust-lang.org/tools/install).
+`gradient` can be installed using [cargo](https://www.rust-lang.org/tools/install).
 
 ```shell
 cargo install gradient
