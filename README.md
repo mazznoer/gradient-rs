@@ -1,6 +1,6 @@
 # `gradient`
 
-[![Build Status](https://github.com/mazznoer/gradient-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/mazznoer/gradient-rs/actions)
+[![Build Status](https://github.com/mazznoer/gradient-rs/actions/workflows/ci.yml/badge.svg)](https://github.com/mazznoer/gradient-rs/actions)
 [![crates.io](https://img.shields.io/crates/v/gradient.svg)](https://crates.io/crates/gradient)
 
 A command-line tool for playing with color gradients.

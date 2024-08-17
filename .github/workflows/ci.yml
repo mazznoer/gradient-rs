@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    paths-ignore:
+      - "**.md"
+  pull_request:
+    paths-ignore:
+      - "**.md"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build
+      run: cargo build --verbose --all-features
+
+    - name: Run tests
+      run: cargo test --verbose --all-features
+
+    - name: Run cargo clippy
+      run: cargo clippy --all-features -- -D warnings
+
+    - name: Run cargo fmt
+      run: cargo fmt --all -- --check
+
+    - name: Run gradient
+      if: matrix.os != 'windows-latest'
+      run: |
+        echo "Test"
+        ./target/debug/gradient
+        echo "Preset"
+        ./target/debug/gradient -p magma
+        echo "Take colors"
+        ./target/debug/gradient -p sinebow -t 10 | cat
+
+    - name: Run gradient (Windows)
+      if: matrix.os == 'windows-latest'
+      run: |
+        echo "Test"
+        target/debug/gradient
+        echo "Preset"
+        target/debug/gradient -p magma
+        echo "Take colors"
+        target/debug/gradient -p sinebow -t 10 | cat
