@@ -39,22 +39,20 @@ jobs:
 
     - name: Run gradient
       if: matrix.os != 'windows-latest'
-      continue-on-error: true
       run: |
-        echo "Test"
-        ./target/debug/gradient
         echo "Preset"
-        ./target/debug/gradient -p magma
+        ./target/debug/gradient -p magma -W 45
         echo "Take colors"
-        ./target/debug/gradient -p sinebow -t 10 | cat
+        ./target/debug/gradient -p sinebow -t 10
+        echo "CSS gradient"
+        ./target/debug/gradient --css "deeppink, gold, seagreen" -W 45
 
     - name: Run gradient (Windows)
       if: matrix.os == 'windows-latest'
-      continue-on-error: true
       run: |
-        echo "Test"
-        target/debug/gradient
         echo "Preset"
-        target/debug/gradient -p magma
+        target/debug/gradient -p magma -W 45
         echo "Take colors"
-        target/debug/gradient -p sinebow -t 10 | cat
+        target/debug/gradient -p sinebow -t 10
+        echo "CSS gradient"
+        target/debug/gradient --css "deeppink, gold, seagreen" -W 45
