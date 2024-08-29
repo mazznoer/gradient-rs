@@ -31,6 +31,11 @@ jobs:
           # [default value: windows]
           # [possible values: all, unix, windows, none]
           zip: windows
+          # create dir
+          leading-dir: true
+          # additional files
+          include: target/completions
         env:
+          OUT_DIR: target
           # (required)
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
