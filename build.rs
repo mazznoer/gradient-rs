@@ -1,13 +1,17 @@
-use clap::*;
+use clap::CommandFactory;
 use clap_complete::{generate_to, Shell};
-use std::env;
+use std::{fs, path, process::exit};
 
 include!("src/cli.rs");
 
-fn main() -> Result<(), Error> {
-    let outdir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("completions/");
+fn main() -> Result<(), clap::Error> {
+    let outdir = path::Path::new(option_env!("OUT_DIR").unwrap_or_else(|| {
+        exit(0);
+    }))
+    .join("completions/");
+
     if !outdir.exists() {
-        std::fs::create_dir(outdir.clone()).expect("Failed to create 'completions' directory.");
+        fs::create_dir(outdir.clone()).expect("Failed to create 'completions' directory.");
     }
 
     let mut cmd = Opt::command();
