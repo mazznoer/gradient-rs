@@ -101,7 +101,7 @@ impl GradientApp {
             return Ok(0);
         }
 
-        if self.opt.list_named_colors {
+        if self.opt.named_colors {
             for (&name, &[r, g, b]) in csscolorparser::NAMED_COLORS.entries() {
                 writeln!(
                     self.stdout,

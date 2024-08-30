@@ -180,7 +180,7 @@ pub struct Opt {
 
     /// Lists all CSS named colors
     #[arg(long)]
-    pub list_named_colors: bool,
+    pub named_colors: bool,
 }
 
 #[test]
