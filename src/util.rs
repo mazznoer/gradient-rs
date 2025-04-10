@@ -32,9 +32,12 @@ pub fn fmt_color(col: &Color, cb: &[Color; 2], width: usize) -> String {
 }
 
 fn format_alpha(a: f32) -> String {
+    if a >= 1.0 {
+        return "".into();
+    }
     let s = format!(",{:.2}%", a * 100.0);
     if s.starts_with(",100") {
-        return "".to_string();
+        return "".into();
     }
     s
 }
@@ -96,4 +99,37 @@ pub fn format_color(col: &Color, format: OutputColor) -> String {
 // Map t from range [a, b] to range [c, d]
 pub fn remap(t: f32, a: f32, b: f32, c: f32, d: f32) -> f32 {
     (t - a) * ((d - c) / (b - a)) + c
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test() {
+        assert_eq!(format_alpha(0.0), ",0.00%");
+        assert_eq!(format_alpha(0.5), ",50.00%");
+        assert_eq!(format_alpha(1.0), "");
+        assert_eq!(format_alpha(1.2), "");
+
+        let red = Color::new(1.0, 0.0, 0.0, 1.0);
+        assert_eq!(format_color(&red, OutputColor::Hex), "#ff0000");
+        assert_eq!(
+            format_color(&red, OutputColor::Rgb),
+            "rgb(100.00%,0.00%,0.00%)"
+        );
+        assert_eq!(format_color(&red, OutputColor::Rgb255), "rgb(255,0,0)");
+        assert_eq!(
+            format_color(&red, OutputColor::Hsl),
+            "hsl(0.00,100.00%,50.00%)"
+        );
+        assert_eq!(
+            format_color(&red, OutputColor::Hsv),
+            "hsv(0.00,100.00%,100.00%)"
+        );
+        assert_eq!(
+            format_color(&red, OutputColor::Hwb),
+            "hwb(0.00,0.00%,0.00%)"
+        );
+    }
 }

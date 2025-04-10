@@ -9,12 +9,7 @@ fn parse_percent_or_float(s: &str) -> Option<f32> {
         }
         return None;
     }
-
-    if let Ok(t) = s.parse::<f32>() {
-        return Some(t);
-    }
-
-    None
+    s.parse::<f32>().ok()
 }
 
 // returns (color, opacity)
@@ -166,4 +161,28 @@ pub(crate) fn parse_svg(path: &str) -> Vec<(LinearGradient, Option<String>)> {
     }
 
     gradients
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test() {
+        assert_eq!(parse_percent_or_float("50%"), Some(0.5));
+        assert_eq!(parse_percent_or_float("100%"), Some(1.0));
+        assert_eq!(parse_percent_or_float("1"), Some(1.0));
+        assert_eq!(parse_percent_or_float("0.73"), Some(0.73));
+
+        assert_eq!(parse_percent_or_float(""), None);
+        assert_eq!(parse_percent_or_float("16g7"), None);
+
+        assert_eq!(
+            parse_styles("stop-color:#ff0; stop-opacity:0.5"),
+            (Some("#ff0"), Some("0.5"))
+        );
+        assert_eq!(parse_styles("stop-color:skyblue"), (Some("skyblue"), None));
+        assert_eq!(parse_styles("stop-opacity:50%"), (None, Some("50%")));
+        assert_eq!(parse_styles(""), (None, None));
+    }
 }
