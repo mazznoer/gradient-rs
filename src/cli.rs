@@ -112,7 +112,7 @@ pub struct Opt {
     pub position: Option<Vec<f32>>,
 
     /// Custom gradient using CSS gradient format
-    #[arg(long, value_name = "CSS-GRADIENT", help_heading = Some("CUSTOM GRADIENT"))]
+    #[arg(short = 'C', long, value_name = "CSS-GRADIENT", help_heading = Some("CUSTOM GRADIENT"))]
     pub css: Option<String>,
 
     /// Custom gradient blending mode [default: oklab]
