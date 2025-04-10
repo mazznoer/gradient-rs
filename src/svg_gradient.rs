@@ -97,11 +97,7 @@ pub(crate) fn parse_svg(path: &str) -> Vec<(LinearGradient, Option<String>)> {
                 }
 
                 let color = if let Some(col) = color {
-                    if let Ok(c) = col.parse::<Color>() {
-                        Some(c)
-                    } else {
-                        None
-                    }
+                    col.parse::<Color>().ok()
                 } else {
                     None
                 };
