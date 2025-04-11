@@ -38,7 +38,7 @@ struct SvgGradient {
     pos: Vec<f32>,
 }
 
-pub(crate) fn parse_svg(path: &str) -> Vec<(LinearGradient, Option<String>)> {
+fn parse_svg(path: &str) -> Vec<SvgGradient> {
     let mut res = Vec::new();
     let mut index = 0;
     let mut prev_pos = f32::NEG_INFINITY;
@@ -132,9 +132,13 @@ pub(crate) fn parse_svg(path: &str) -> Vec<(LinearGradient, Option<String>)> {
         }
     }
 
+    res
+}
+
+fn to_gradients(data: Vec<SvgGradient>) -> Vec<(LinearGradient, Option<String>)> {
     let mut gradients = Vec::new();
 
-    for mut g in res {
+    for mut g in data {
         if g.colors.is_empty() {
             continue;
         }
@@ -163,12 +167,20 @@ pub(crate) fn parse_svg(path: &str) -> Vec<(LinearGradient, Option<String>)> {
     gradients
 }
 
+pub(crate) fn parse(path: &str) -> Vec<(LinearGradient, Option<String>)> {
+    to_gradients(parse_svg(path))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn colors2hex(colors: &[Color]) -> Vec<String> {
+        colors.iter().map(|c| c.to_hex_string()).collect()
+    }
+
     #[test]
-    fn test() {
+    fn utils() {
         assert_eq!(parse_percent_or_float("50%"), Some(0.5));
         assert_eq!(parse_percent_or_float("100%"), Some(1.0));
         assert_eq!(parse_percent_or_float("1"), Some(1.0));
@@ -184,5 +196,22 @@ mod tests {
         assert_eq!(parse_styles("stop-color:skyblue"), (Some("skyblue"), None));
         assert_eq!(parse_styles("stop-opacity:50%"), (None, Some("50%")));
         assert_eq!(parse_styles(""), (None, None));
+    }
+
+    #[test]
+    fn svg_parsing() {
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/data/gradients.svg");
+        let res = parse_svg(path);
+        assert_eq!(res.len(), 2);
+
+        let d = &res[0];
+        assert_eq!(d.id, Some("grad-0".into()));
+        assert_eq!(colors2hex(&d.colors), ["#c41189", "#00bfff", "#ffd700"]);
+        assert_eq!(d.pos, [0.0, 0.5, 1.0]);
+
+        let d = &res[1];
+        assert_eq!(d.id, Some("grad-1".into()));
+        assert_eq!(colors2hex(&d.colors), ["#ff1493", "#ffd700", "#2e8b57"]);
+        assert_eq!(d.pos, [0.0, 0.5, 1.0]);
     }
 }

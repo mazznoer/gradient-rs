@@ -7,8 +7,6 @@ mod cli;
 use cli::{BlendMode, Interpolation, Opt, OutputColor, PRESET_NAMES};
 
 mod svg_gradient;
-use svg_gradient::parse_svg;
-
 mod util;
 
 #[derive(PartialEq)]
@@ -292,8 +290,8 @@ impl GradientApp {
 
                     "svg" => {
                         let filename = &path.display().to_string();
-                        let gradients =
-                            parse_svg(path.into_os_string().into_string().unwrap().as_ref());
+                        let filepath = path.into_os_string().into_string().unwrap();
+                        let gradients = svg_gradient::parse(&filepath);
 
                         if (self.is_terminal || (self.output_mode == OutputMode::Gradient))
                             && gradients.is_empty()

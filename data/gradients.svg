@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+	<defs>
+		<linearGradient id="grad-0">
+			<stop offset="0" stop-color="#C41189" />
+			<stop offset="0.5" stop-color="#00BFFF" />
+			<stop offset="1" stop-color="#FFD700" />
+		</linearGradient>
+		<!-- Using percentage offset -->
+		<linearGradient id="grad-1">
+			<stop offset="0%" stop-color="deeppink" />
+			<stop offset="50%" stop-color="gold" />
+			<stop offset="100%" stop-color="seagreen" />
+		</linearGradient>
+	</defs>
+</svg>
