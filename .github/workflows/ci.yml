@@ -47,6 +47,7 @@ jobs:
     - name: Run gradient
       if: matrix.os != 'windows-latest'
       run: |
+        ./target/debug/gradient --help
         echo "Preset"
         ./target/debug/gradient -p magma -W 45
         echo "Take colors"
@@ -57,6 +58,7 @@ jobs:
     - name: Run gradient (Windows)
       if: matrix.os == 'windows-latest'
       run: |
+        target/debug/gradient --help
         echo "Preset"
         target/debug/gradient -p magma -W 45
         echo "Take colors"
