@@ -38,13 +38,12 @@ struct SvgGradient {
     pos: Vec<f32>,
 }
 
-fn parse_svg(path: &str) -> Vec<SvgGradient> {
+fn parse_svg(s: &str) -> Vec<SvgGradient> {
     let mut res = Vec::new();
     let mut index = 0;
     let mut prev_pos = f32::NEG_INFINITY;
-    let mut content = String::new();
 
-    for event in svg::open(path, &mut content).unwrap() {
+    for event in svg::read(s).unwrap() {
         match event {
             Event::Tag(svg_tag::LinearGradient, t, attributes)
             | Event::Tag(svg_tag::RadialGradient, t, attributes) => match t {
@@ -167,8 +166,8 @@ fn to_gradients(data: Vec<SvgGradient>) -> Vec<(LinearGradient, Option<String>)>
     gradients
 }
 
-pub(crate) fn parse(path: &str) -> Vec<(LinearGradient, Option<String>)> {
-    to_gradients(parse_svg(path))
+pub(crate) fn parse(s: &str) -> Vec<(LinearGradient, Option<String>)> {
+    to_gradients(parse_svg(s))
 }
 
 #[cfg(test)]
@@ -177,6 +176,21 @@ mod tests {
 
     fn colors2hex(colors: &[Color]) -> Vec<String> {
         colors.iter().map(|c| c.to_hex_string()).collect()
+    }
+
+    fn str_colors2hex(colors: &[&str]) -> Vec<String> {
+        colors
+            .iter()
+            .map(|s| s.parse::<Color>().unwrap().to_hex_string())
+            .collect()
+    }
+
+    macro_rules! assert_gradient {
+        ($sg:expr, $id:expr, $colors:expr, $pos:expr) => {
+            assert_eq!($sg.id, Some($id.into()));
+            assert_eq!(colors2hex(&$sg.colors), str_colors2hex($colors));
+            assert_eq!(&$sg.pos, $pos);
+        };
     }
 
     #[test]
@@ -200,18 +214,38 @@ mod tests {
 
     #[test]
     fn svg_parsing() {
-        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/data/gradients.svg");
-        let res = parse_svg(path);
-        assert_eq!(res.len(), 2);
+        let result = parse_svg(
+            r##"
+        <linearGradient id="banana">
+            <stop offset="0" stop-color="#C41189" />
+            <stop offset="0.5" stop-color="#00BFFF" />
+            <stop offset="1" stop-color="#FFD700" />
+        </linearGradient>
+        "##,
+        );
+        assert_eq!(result.len(), 1);
+        assert_gradient!(
+            result[0],
+            "banana",
+            &["#c41189", "#00bfff", "#ffd700"],
+            &[0.0, 0.5, 1.0]
+        );
 
-        let d = &res[0];
-        assert_eq!(d.id, Some("grad-0".into()));
-        assert_eq!(colors2hex(&d.colors), ["#c41189", "#00bfff", "#ffd700"]);
-        assert_eq!(d.pos, [0.0, 0.5, 1.0]);
-
-        let d = &res[1];
-        assert_eq!(d.id, Some("grad-1".into()));
-        assert_eq!(colors2hex(&d.colors), ["#ff1493", "#ffd700", "#2e8b57"]);
-        assert_eq!(d.pos, [0.0, 0.5, 1.0]);
+        let result = parse_svg(
+            r##"
+        <linearGradient id="apple">
+            <stop offset="0%" stop-color="deeppink" />
+            <stop offset="50%" stop-color="gold" />
+            <stop offset="100%" stop-color="seagreen" />
+        </linearGradient>
+        "##,
+        );
+        assert_eq!(result.len(), 1);
+        assert_gradient!(
+            result[0],
+            "apple",
+            &["deeppink", "gold", "seagreen"],
+            &[0.0, 0.5, 1.0]
+        );
     }
 }

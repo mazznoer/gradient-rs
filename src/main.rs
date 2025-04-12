@@ -1,6 +1,6 @@
 use clap::Parser;
 use colorgrad::{preset, Color, Gradient};
-use std::io::{self, BufReader, IsTerminal, Write};
+use std::io::{self, BufReader, IsTerminal, Read, Write};
 use std::{ffi::OsStr, fs::File, process::exit};
 
 mod cli;
@@ -290,8 +290,10 @@ impl GradientApp {
 
                     "svg" => {
                         let filename = &path.display().to_string();
-                        let filepath = path.into_os_string().into_string().unwrap();
-                        let gradients = svg_gradient::parse(&filepath);
+                        let mut file = File::open(&path)?;
+                        let mut content = String::new();
+                        file.read_to_string(&mut content)?;
+                        let gradients = svg_gradient::parse(&content);
 
                         if (self.is_terminal || (self.output_mode == OutputMode::Gradient))
                             && gradients.is_empty()
