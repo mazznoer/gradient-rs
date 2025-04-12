@@ -231,6 +231,7 @@ mod tests {
             &[0.0, 0.5, 1.0]
         );
 
+        // Using percentage
         let result = parse_svg(
             r##"
         <linearGradient id="apple">
@@ -246,6 +247,97 @@ mod tests {
             "apple",
             &["deeppink", "gold", "seagreen"],
             &[0.0, 0.5, 1.0]
+        );
+
+        // radialGradient tag
+        let result = parse_svg(
+            r##"
+        <radialGradient id="mango">
+            <stop offset="0" stop-color="deeppink" />
+            <stop offset="0.5" stop-color="gold" />
+            <stop offset="1" stop-color="seagreen" />
+        </radialGradient>
+        "##,
+        );
+        assert_eq!(result.len(), 1);
+        assert_gradient!(
+            result[0],
+            "mango",
+            &["deeppink", "gold", "seagreen"],
+            &[0.0, 0.5, 1.0]
+        );
+
+        fn set_alpha(col: &str, alpha: f32) -> String {
+            let c = col.parse::<Color>().unwrap();
+            Color::new(c.r, c.g, c.b, alpha).to_hex_string()
+        }
+
+        // Using style attribute
+        let result = parse_svg(
+            r##"
+        <linearGradient id="papaya">
+            <stop offset="0" style="stop-color:tomato;" />
+            <stop offset="0.5" style="stop-color:gold;stop-opacity:0.9;" />
+            <stop offset="1" style="stop-color:steelblue;" />
+        </linearGradient>
+        "##,
+        );
+        assert_eq!(result.len(), 1);
+        assert_gradient!(
+            result[0],
+            "papaya",
+            &["tomato", &set_alpha("gold", 0.9), "steelblue"],
+            &[0.0, 0.5, 1.0]
+        );
+
+        // Multiple gradients
+        let result = parse_svg(
+            r##"
+        <linearGradient id="gradient-1">
+            <stop offset="0" stop-color="#c4114d" />
+            <stop offset="0.5" stop-color="#6268a6" />
+            <stop offset="0.5" stop-color="#57cf4f" />
+            <stop offset="1" stop-color="#ffe04d" />
+        </linearGradient>
+        <!-- This should render just like #gradient-1 -->
+        <linearGradient id="gradient-2">
+            <stop offset="0" stop-color="#c4114d" />
+            <stop offset="0.5" stop-color="#6268a6" />
+            <stop offset="0.2" stop-color="#57cf4f" />
+            <stop offset="1" stop-color="#ffe04d" />
+        </linearGradient>
+        "##,
+        );
+        assert_eq!(result.len(), 2);
+        assert_gradient!(
+            result[0],
+            "gradient-1",
+            &["#c4114d", "#6268a6", "#57cf4f", "#ffe04d"],
+            &[0.0, 0.5, 0.5, 1.0]
+        );
+        assert_gradient!(
+            result[1],
+            "gradient-2",
+            &["#c4114d", "#6268a6", "#57cf4f", "#ffe04d"],
+            &[0.0, 0.5, 0.5, 1.0]
+        );
+
+        // Incomplete stop attributes
+        let result = parse_svg(
+            r##"
+        <linearGradient id="g4657">
+            <stop offset="0" />
+            <stop offset="0.7" stop-color="gold" />
+            <stop stop-color="steelblue" />
+        </linearGradient>
+        "##,
+        );
+        assert_eq!(result.len(), 1);
+        assert_gradient!(
+            result[0],
+            "g4657",
+            &["black", "gold", "steelblue"],
+            &[0.0, 0.7, 0.7]
         );
     }
 }
