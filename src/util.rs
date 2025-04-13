@@ -96,11 +96,6 @@ pub fn format_color(col: &Color, format: OutputColor) -> String {
     }
 }
 
-// Map t from range [a, b] to range [c, d]
-pub fn remap(t: f32, a: f32, b: f32, c: f32, d: f32) -> f32 {
-    (t - a) * ((d - c) / (b - a)) + c
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

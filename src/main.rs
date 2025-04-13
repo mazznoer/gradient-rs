@@ -365,35 +365,24 @@ impl GradientApp {
     }
 
     fn display_gradient(&mut self, grad: Box<dyn Gradient>) -> io::Result<i32> {
-        let (dmin, dmax) = grad.domain();
-        let w2 = (self.width * 2 - 1) as f32;
-        let [cb_0, cb_1] = &self.cb_color;
+        let colors = grad.colors(self.width * 2);
 
         for y in 0..self.height {
-            let mut i = 0;
-
-            for x in 0..self.width {
+            for (x, cols) in colors.chunks_exact(2).enumerate() {
                 let bg_color = if self.use_solid_bg {
                     &self.background
                 } else if ((x / 2) & 1) ^ (y & 1) == 0 {
-                    cb_0
+                    &self.cb_color[0]
                 } else {
-                    cb_1
+                    &self.cb_color[1]
                 };
 
-                let col_l = grad.at(util::remap(i as f32, 0.0, w2, dmin, dmax));
-                i += 1;
-
-                let col_r = grad.at(util::remap(i as f32, 0.0, w2, dmin, dmax));
-                i += 1;
-
-                let col_l = util::blend_color(&col_l, bg_color).to_rgba8();
-                let col_r = util::blend_color(&col_r, bg_color).to_rgba8();
+                let [a, b, c, _] = util::blend_color(&cols[0], bg_color).to_rgba8();
+                let [d, e, f, _] = util::blend_color(&cols[1], bg_color).to_rgba8();
 
                 write!(
                     self.stdout,
-                    "\x1B[38;2;{};{};{};48;2;{};{};{}m\u{258C}",
-                    col_l[0], col_l[1], col_l[2], col_r[0], col_r[1], col_r[2]
+                    "\x1B[38;2;{a};{b};{c};48;2;{d};{e};{f}m\u{258C}",
                 )?;
             }
 
