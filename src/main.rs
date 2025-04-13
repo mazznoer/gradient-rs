@@ -1,5 +1,5 @@
 use clap::Parser;
-use colorgrad::{preset, Color, Gradient};
+use colorgrad::{Color, Gradient};
 use std::io::{self, BufReader, IsTerminal, Read, Write};
 use std::{ffi::OsStr, fs::File, process::exit};
 
@@ -127,60 +127,39 @@ impl GradientApp {
     }
 
     fn preset_gradient(&mut self) -> io::Result<i32> {
-        let grad: Box<dyn Gradient> = match self
-            .opt
-            .preset
-            .as_ref()
-            .unwrap()
-            .to_lowercase()
-            .replace('-', "_")
-            .as_ref()
-        {
-            "blues" => Box::new(preset::blues()),
-            "br_bg" => Box::new(preset::br_bg()),
-            "bu_gn" => Box::new(preset::bu_gn()),
-            "bu_pu" => Box::new(preset::bu_pu()),
-            "cividis" => Box::new(preset::cividis()),
-            "cool" => Box::new(preset::cool()),
-            "cubehelix" => Box::new(preset::cubehelix_default()),
-            "gn_bu" => Box::new(preset::gn_bu()),
-            "greens" => Box::new(preset::greens()),
-            "greys" => Box::new(preset::greys()),
-            "inferno" => Box::new(preset::inferno()),
-            "magma" => Box::new(preset::magma()),
-            "or_rd" => Box::new(preset::or_rd()),
-            "oranges" => Box::new(preset::oranges()),
-            "pi_yg" => Box::new(preset::pi_yg()),
-            "plasma" => Box::new(preset::plasma()),
-            "pr_gn" => Box::new(preset::pr_gn()),
-            "pu_bu" => Box::new(preset::pu_bu()),
-            "pu_bu_gn" => Box::new(preset::pu_bu_gn()),
-            "pu_or" => Box::new(preset::pu_or()),
-            "pu_rd" => Box::new(preset::pu_rd()),
-            "purples" => Box::new(preset::purples()),
-            "rainbow" => Box::new(preset::rainbow()),
-            "rd_bu" => Box::new(preset::rd_bu()),
-            "rd_gy" => Box::new(preset::rd_gy()),
-            "rd_pu" => Box::new(preset::rd_pu()),
-            "rd_yl_bu" => Box::new(preset::rd_yl_bu()),
-            "rd_yl_gn" => Box::new(preset::rd_yl_gn()),
-            "reds" => Box::new(preset::reds()),
-            "sinebow" => Box::new(preset::sinebow()),
-            "spectral" => Box::new(preset::spectral()),
-            "turbo" => Box::new(preset::turbo()),
-            "viridis" => Box::new(preset::viridis()),
-            "warm" => Box::new(preset::warm()),
-            "yl_gn" => Box::new(preset::yl_gn()),
-            "yl_gn_bu" => Box::new(preset::yl_gn_bu()),
-            "yl_or_br" => Box::new(preset::yl_or_br()),
-            "yl_or_rd" => Box::new(preset::yl_or_rd()),
-            _ => {
-                writeln!(io::stderr(), "Error: Invalid preset gradient name. Use -l flag to list all preset gradient names.")?;
-                return Ok(1);
-            }
-        };
+        use colorgrad::preset::*;
 
-        self.handle_output(grad)?;
+        fn cubehelix() -> CubehelixGradient {
+            cubehelix_default()
+        }
+
+        macro_rules! presets {
+            ($($name:ident),*) => {
+                match self
+                .opt
+                .preset
+                .as_ref()
+                .unwrap()
+                .to_lowercase()
+                .replace('-', "_")
+                .as_ref()
+                {
+                    $(stringify!($name) => self.handle_output(&$name())?,)*
+                    _ => {
+                        writeln!(io::stderr(), "Error: Invalid preset gradient name. Use -l flag to list all preset gradient names.")?;
+                        return Ok(1);
+                    }
+                }
+            }
+        }
+
+        presets!(
+            blues, br_bg, bu_gn, bu_pu, cividis, cool, cubehelix, gn_bu, greens, greys, inferno,
+            magma, or_rd, oranges, pi_yg, plasma, pr_gn, pu_bu, pu_bu_gn, pu_or, pu_rd, purples,
+            rainbow, rd_bu, rd_gy, rd_pu, rd_yl_bu, rd_yl_gn, reds, sinebow, spectral, turbo,
+            viridis, warm, yl_gn, yl_gn_bu, yl_or_br, yl_or_rd
+        );
+
         Ok(0)
     }
 
@@ -204,23 +183,23 @@ impl GradientApp {
             _ => colorgrad::BlendMode::Oklab,
         });
 
-        let grad: Box<dyn Gradient> = match self.opt.interpolation {
+        match self.opt.interpolation {
             Some(Interpolation::Linear) => match gb.build::<colorgrad::LinearGradient>() {
-                Ok(g) => Box::new(g),
+                Ok(g) => self.handle_output(&g)?,
                 Err(e) => {
                     writeln!(io::stderr(), "Custom gradient error: {e}")?;
                     return Ok(1);
                 }
             },
             Some(Interpolation::Basis) => match gb.build::<colorgrad::BasisGradient>() {
-                Ok(g) => Box::new(g),
+                Ok(g) => self.handle_output(&g)?,
                 Err(e) => {
                     writeln!(io::stderr(), "Custom gradient error: {e}")?;
                     return Ok(1);
                 }
             },
             _ => match gb.build::<colorgrad::CatmullRomGradient>() {
-                Ok(g) => Box::new(g),
+                Ok(g) => self.handle_output(&g)?,
                 Err(e) => {
                     writeln!(io::stderr(), "Custom gradient error: {e}")?;
                     return Ok(1);
@@ -228,7 +207,6 @@ impl GradientApp {
             },
         };
 
-        self.handle_output(grad)?;
         Ok(0)
     }
 
@@ -277,7 +255,7 @@ impl GradientApp {
                                     writeln!(self.stdout, " \x1B[1m{}\x1B[0m", grad.name())?;
                                 }
 
-                                self.handle_output(Box::new(grad))?;
+                                self.handle_output(&grad)?;
                             }
 
                             Err(err) => {
@@ -321,7 +299,7 @@ impl GradientApp {
                                 writeln!(self.stdout, "{filename} \x1B[1m{id}\x1B[0m")?;
                             }
 
-                            self.handle_output(Box::new(grad))?;
+                            self.handle_output(&grad)?;
 
                             if stop {
                                 break;
@@ -336,7 +314,7 @@ impl GradientApp {
         Ok(status)
     }
 
-    fn handle_output(&mut self, grad: Box<dyn Gradient>) -> io::Result<i32> {
+    fn handle_output(&mut self, grad: &dyn Gradient) -> io::Result<i32> {
         match self.output_mode {
             OutputMode::Gradient => self.display_gradient(grad),
 
@@ -364,7 +342,7 @@ impl GradientApp {
         }
     }
 
-    fn display_gradient(&mut self, grad: Box<dyn Gradient>) -> io::Result<i32> {
+    fn display_gradient(&mut self, grad: &dyn Gradient) -> io::Result<i32> {
         let colors = grad.colors(self.width * 2);
 
         for y in 0..self.height {
@@ -516,7 +494,7 @@ impl GradientApp {
         let grad =
             colorgrad::GimpGradient::new(BufReader::new(GGR_SAMPLE.as_bytes()), &color, &color)
                 .unwrap();
-        self.display_gradient(Box::new(grad))?;
+        self.display_gradient(&grad)?;
 
         writeln!(self.stdout, "{prompt} gradient --preset viridis --take 10")?;
         self.opt.custom = None;
