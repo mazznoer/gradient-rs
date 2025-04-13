@@ -340,4 +340,52 @@ mod tests {
             &[0.0, 0.7, 0.7]
         );
     }
+
+    #[test]
+    fn malformed_gradients() {
+        let result = parse_svg(
+            r##"
+        <linearGradient id="empty">
+        </linearGradient>
+        
+        <linearGradient id="empty-stops">
+            <stop />
+            <stop />
+            <stop />
+        </linearGradient>
+        
+        <linearGradient id="without-color">
+            <stop offset="0%" />
+            <stop offset="75%" />
+            <stop offset="100%" />
+        </linearGradient>
+        
+        <linearGradient id="without-offset">
+            <stop stop-color="red" />
+            <stop stop-color="lime" />
+            <stop stop-color="blue" />
+        </linearGradient>
+        "##,
+        );
+        assert_eq!(result.len(), 4);
+        assert_gradient!(result[0], "empty", &[], &[]);
+        assert_gradient!(
+            result[1],
+            "empty-stops",
+            &["black", "black", "black"],
+            &[0.0, 0.0, 0.0]
+        );
+        assert_gradient!(
+            result[2],
+            "without-color",
+            &["black", "black", "black"],
+            &[0.0, 0.75, 1.0]
+        );
+        assert_gradient!(
+            result[3],
+            "without-offset",
+            &["red", "lime", "blue"],
+            &[0.0, 0.0, 0.0]
+        );
+    }
 }
