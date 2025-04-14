@@ -16,16 +16,13 @@ pub fn blend_on(fg: &mut Color, bg: &Color) {
     fg.a = 1.0;
 }
 
-pub fn fmt_color(col: &Color, cb: &[Color; 2], width: usize) -> String {
+pub fn color_to_ansi(col: &Color, cb: &[Color; 2], width: usize) -> String {
     let mut ss = "".to_string();
     for i in 0..width {
-        let ch = if (i & 1) == 0 { "\u{2580}" } else { "\u{2584}" };
-        let cl = blend_color(col, &cb[0]).to_rgba8();
-        let cr = blend_color(col, &cb[1]).to_rgba8();
-        ss.push_str(&format!(
-            "\x1B[38;2;{};{};{};48;2;{};{};{}m{}",
-            cl[0], cl[1], cl[2], cr[0], cr[1], cr[2], ch
-        ));
+        let chr = if (i & 1) == 0 { "\u{2580}" } else { "\u{2584}" };
+        let [a, b, c, _] = blend_color(col, &cb[0]).to_rgba8();
+        let [d, e, f, _] = blend_color(col, &cb[1]).to_rgba8();
+        ss.push_str(&format!("\x1B[38;2;{a};{b};{c};48;2;{d};{e};{f}m{chr}"));
     }
     ss.push_str("\x1B[39;49m");
     ss

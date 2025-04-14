@@ -48,10 +48,8 @@ fn parse_svg(s: &str) -> Vec<SvgGradient> {
             Event::Tag(svg_tag::LinearGradient, t, attributes)
             | Event::Tag(svg_tag::RadialGradient, t, attributes) => match t {
                 svg_tag::Type::Start => {
-                    let id = attributes.get("id").map(|v| v.to_string());
-
                     res.push(SvgGradient {
-                        id,
+                        id: attributes.get("id").map(|v| v.to_string()),
                         colors: Vec::new(),
                         pos: Vec::new(),
                     });

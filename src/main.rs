@@ -90,9 +90,9 @@ impl GradientApp {
             self.width = self.term_width.min(80);
             self.height = 2;
 
-            for name in &PRESET_NAMES {
+            for name in PRESET_NAMES {
                 writeln!(self.stdout, "{name}")?;
-                self.opt.preset = Some(name.to_string());
+                self.opt.preset = Some(name.into());
                 self.preset_gradient()?;
             }
 
@@ -292,7 +292,7 @@ impl GradientApp {
                                     (format!("#{id}"), false)
                                 }
                             } else {
-                                ("".to_string(), false)
+                                ("".into(), false)
                             };
 
                             if self.is_terminal || (self.output_mode == OutputMode::Gradient) {
@@ -329,14 +329,20 @@ impl GradientApp {
             }
 
             OutputMode::ColorsSample => {
-                let mut colors = Vec::with_capacity(self.opt.sample.as_ref().unwrap().len());
-                for pos in self.opt.sample.as_ref().unwrap().iter() {
-                    let mut col = grad.at(*pos).clamp();
-                    if self.use_solid_bg {
-                        util::blend_on(&mut col, &self.background);
-                    }
-                    colors.push(col);
-                }
+                let colors: Vec<_> = self
+                    .opt
+                    .sample
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .map(|t| {
+                        let mut c = grad.at(*t).clamp();
+                        if self.use_solid_bg {
+                            util::blend_on(&mut c, &self.background);
+                        }
+                        c
+                    })
+                    .collect();
                 self.display_colors(&colors)
             }
         }
@@ -372,10 +378,10 @@ impl GradientApp {
 
     fn display_colors(&mut self, colors: &[Color]) -> io::Result<i32> {
         if self.opt.array {
-            let mut cols = Vec::with_capacity(colors.len());
-            for col in colors {
-                cols.push(util::format_color(col, self.output_format));
-            }
+            let cols: Vec<_> = colors
+                .iter()
+                .map(|c| util::format_color(c, self.output_format))
+                .collect();
             writeln!(self.stdout, "{cols:?}")?;
             return Ok(0);
         }
@@ -386,7 +392,7 @@ impl GradientApp {
                     writeln!(
                         self.stdout,
                         "{} {}",
-                        util::fmt_color(col, &self.cb_color, 7),
+                        util::color_to_ansi(col, &self.cb_color, 7),
                         util::format_color(col, self.output_format)
                     )?;
                 }
@@ -401,7 +407,7 @@ impl GradientApp {
             for (i, col) in colors.iter().enumerate() {
                 let hex = util::format_color(col, self.output_format);
                 let wc = hex.len();
-                buff0.push_str(&util::fmt_color(col, &self.cb_color, wc));
+                buff0.push_str(&util::color_to_ansi(col, &self.cb_color, wc));
                 buff1.push_str(&hex);
                 w += wc;
                 if w < self.term_width {
@@ -458,7 +464,7 @@ impl GradientApp {
         )?;
         writeln!(self.stdout, "{}", bold("EXAMPLES:"))?;
         writeln!(self.stdout, "{prompt} gradient --preset rainbow")?;
-        self.opt.preset = Some("rainbow".to_string());
+        self.opt.preset = Some("rainbow".into());
         self.preset_gradient()?;
 
         writeln!(
@@ -476,7 +482,7 @@ impl GradientApp {
 
         writeln!(self.stdout, "{prompt} gradient --css 'white, 25%, blue'")?;
         self.opt.custom = None;
-        self.opt.css = Some("white, 25%, blue".to_string());
+        self.opt.css = Some("white, 25%, blue".into());
         self.custom_gradient()?;
 
         writeln!(
@@ -498,7 +504,7 @@ impl GradientApp {
 
         writeln!(self.stdout, "{prompt} gradient --preset viridis --take 10")?;
         self.opt.custom = None;
-        self.opt.preset = Some("viridis".to_string());
+        self.opt.preset = Some("viridis".into());
         self.opt.take = Some(10);
         self.output_mode = OutputMode::ColorsN;
         self.preset_gradient()?;
