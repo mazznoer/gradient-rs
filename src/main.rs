@@ -100,7 +100,10 @@ impl GradientApp<'_> {
         }
 
         if self.opt.named_colors {
-            for (&name, &[r, g, b]) in csscolorparser::NAMED_COLORS.entries() {
+            let mut colors: Vec<_> = csscolorparser::NAMED_COLORS.entries().collect();
+            colors.sort_by(|a, b| a.0.cmp(b.0));
+
+            for (&name, &[r, g, b]) in &colors {
                 writeln!(
                     self.stdout,
                     "\x1B[48;2;{r};{g};{b}m   \x1B[49;38;2;{r};{g};{b}m #{r:02x}{g:02x}{b:02x}\x1B[39m {name}"
