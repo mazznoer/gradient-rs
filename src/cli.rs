@@ -10,7 +10,7 @@ pub enum BlendMode {
     Lab,
 }
 
-#[derive(Clone, ValueEnum)]
+#[derive(Copy, Clone, ValueEnum)]
 pub enum Interpolation {
     Linear,
     Basis,

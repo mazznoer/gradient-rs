@@ -274,7 +274,16 @@ impl GradientApp<'_> {
                         let mut file = File::open(&path)?;
                         let mut content = String::new();
                         file.read_to_string(&mut content)?;
-                        let gradients = svg_gradient::parse(&content);
+
+                        let mode = match self.opt.blend_mode {
+                            Some(BlendMode::Rgb) => colorgrad::BlendMode::Rgb,
+                            Some(BlendMode::LinearRgb) => colorgrad::BlendMode::LinearRgb,
+                            Some(BlendMode::Lab) => colorgrad::BlendMode::Lab,
+                            _ => colorgrad::BlendMode::Oklab,
+                        };
+                        let interp = self.opt.interpolation.unwrap_or(Interpolation::CatmullRom);
+                        let gds = svg_gradient::parse_svg(&content);
+                        let gradients = svg_gradient::to_gradients(gds, mode, interp);
 
                         if (self.is_terminal || (self.output_mode == OutputMode::Gradient))
                             && gradients.is_empty()

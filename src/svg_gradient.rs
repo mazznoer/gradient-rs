@@ -1,6 +1,8 @@
-use colorgrad::{Color, GradientBuilder, LinearGradient};
+use colorgrad::{BlendMode, Color, Gradient, GradientBuilder};
 use svg::node::element::tag as svg_tag;
 use svg::parser::Event;
+
+use crate::Interpolation;
 
 fn parse_percent_or_float(s: &str) -> Option<f32> {
     if let Some(s) = s.strip_suffix('%') {
@@ -32,13 +34,13 @@ fn parse_styles(s: &str) -> (Option<&str>, Option<&str>) {
 }
 
 #[derive(Debug)]
-struct SvgGradient {
+pub struct SvgGradient {
     id: Option<String>,
     colors: Vec<Color>,
     pos: Vec<f32>,
 }
 
-fn parse_svg(s: &str) -> Vec<SvgGradient> {
+pub fn parse_svg(s: &str) -> Vec<SvgGradient> {
     let mut res = Vec::new();
     let mut index = 0;
     let mut prev_pos = f32::NEG_INFINITY;
@@ -132,7 +134,11 @@ fn parse_svg(s: &str) -> Vec<SvgGradient> {
     res
 }
 
-fn to_gradients(data: Vec<SvgGradient>) -> Vec<(LinearGradient, Option<String>)> {
+pub fn to_gradients(
+    data: Vec<SvgGradient>,
+    mode: BlendMode,
+    imode: Interpolation,
+) -> Vec<(Box<dyn Gradient>, Option<String>)> {
     let mut gradients = Vec::new();
 
     for mut g in data {
@@ -150,22 +156,27 @@ fn to_gradients(data: Vec<SvgGradient>) -> Vec<(LinearGradient, Option<String>)>
             g.colors.push(g.colors.last().unwrap().clone());
         }
 
-        let grad = GradientBuilder::new()
-            .colors(&g.colors)
-            .domain(&g.pos)
-            .build::<LinearGradient>();
+        let mut gb = GradientBuilder::new();
+        gb.colors(&g.colors).domain(&g.pos).mode(mode);
 
-        match grad {
-            Ok(grad) => gradients.push((grad, g.id)),
-            Err(e) => eprintln!("{e}"),
-        }
+        let efn = |e| eprintln!("{e}");
+
+        match imode {
+            Interpolation::Linear => gb
+                .build::<colorgrad::LinearGradient>()
+                .map_or_else(efn, |v| gradients.push((v.boxed(), g.id))),
+
+            Interpolation::Basis => gb
+                .build::<colorgrad::BasisGradient>()
+                .map_or_else(efn, |v| gradients.push((v.boxed(), g.id))),
+
+            Interpolation::CatmullRom => gb
+                .build::<colorgrad::CatmullRomGradient>()
+                .map_or_else(efn, |v| gradients.push((v.boxed(), g.id))),
+        };
     }
 
     gradients
-}
-
-pub(crate) fn parse(s: &str) -> Vec<(LinearGradient, Option<String>)> {
-    to_gradients(parse_svg(s))
 }
 
 #[cfg(test)]
