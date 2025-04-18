@@ -38,6 +38,7 @@ pub struct SvgGradient {
     id: Option<String>,
     colors: Vec<Color>,
     pos: Vec<f32>,
+    valid: bool,
 }
 
 pub fn parse_svg(s: &str) -> Vec<SvgGradient> {
@@ -54,12 +55,15 @@ pub fn parse_svg(s: &str) -> Vec<SvgGradient> {
                         id: attributes.get("id").map(|v| v.to_string()),
                         colors: Vec::new(),
                         pos: Vec::new(),
+                        valid: true,
                     });
                 }
+
                 svg_tag::Type::End => {
                     index += 1;
                     prev_pos = f32::NEG_INFINITY;
                 }
+
                 svg_tag::Type::Empty => {}
             },
             Event::Tag(svg_tag::Stop, _, attributes) => {
@@ -67,48 +71,56 @@ pub fn parse_svg(s: &str) -> Vec<SvgGradient> {
                     continue;
                 }
 
-                let mut color: Option<&str> = None;
-                let mut opacity: Option<&str> = None;
+                let mut color: Option<Color> = None;
+                let mut opacity: Option<f32> = None;
 
-                if let Some(c) = attributes.get("stop-color") {
+                if let Some(s) = attributes.get("stop-color") {
+                    let Ok(c) = s.parse::<Color>() else {
+                        res[index].valid = false;
+                        continue;
+                    };
                     color = Some(c);
                 }
 
-                if let Some(c) = attributes.get("stop-opacity") {
-                    opacity = Some(c);
+                if let Some(s) = attributes.get("stop-opacity") {
+                    let Some(opc) = parse_percent_or_float(s) else {
+                        res[index].valid = false;
+                        continue;
+                    };
+                    opacity = Some(opc);
                 }
 
                 if let Some(styles) = attributes.get("style") {
                     let (col, opac) = parse_styles(styles);
 
-                    if let Some(c) = col {
+                    if let Some(s) = col {
+                        let Ok(c) = s.parse::<Color>() else {
+                            res[index].valid = false;
+                            continue;
+                        };
                         color = Some(c);
                     }
 
-                    if let Some(o) = opac {
-                        opacity = Some(o);
+                    if let Some(s) = opac {
+                        let Some(opc) = parse_percent_or_float(s) else {
+                            res[index].valid = false;
+                            continue;
+                        };
+                        opacity = Some(opc);
                     }
                 }
 
-                let color = if let Some(col) = color {
-                    col.parse::<Color>().ok()
-                } else {
-                    None
-                };
-
-                let opacity = if let Some(op) = opacity {
-                    parse_percent_or_float(op)
-                } else {
-                    None
-                };
-
                 let offset = if let Some(pos) = attributes.get("offset") {
-                    parse_percent_or_float(pos)
+                    let Some(of) = parse_percent_or_float(pos) else {
+                        res[index].valid = false;
+                        continue;
+                    };
+                    Some(of)
                 } else {
                     None
                 };
 
-                let color = color.unwrap_or_else(|| Color::new(0.0, 0.0, 0.0, 1.0));
+                let color = color.unwrap_or(Color::new(0.0, 0.0, 0.0, 1.0));
 
                 let offset = offset.unwrap_or(prev_pos);
 
@@ -142,7 +154,20 @@ pub fn to_gradients(
     let mut gradients = Vec::new();
 
     for mut g in data {
+        assert!(g.colors.len() == g.pos.len());
+
+        let id =
+            g.id.as_ref()
+                .map(|s| format!("\x1B[1m#{s}\x1B[0m"))
+                .unwrap_or("[without id]".into());
+
+        if !g.valid {
+            eprintln!("{id}: invalid stop");
+            continue;
+        }
+
         if g.colors.is_empty() {
+            eprintln!("{id}: empty");
             continue;
         }
 
@@ -199,6 +224,7 @@ mod tests {
             assert_eq!($sg.id, Some($id.into()));
             assert_eq!(colors2hex(&$sg.colors), str_colors2hex($colors));
             assert_eq!(&$sg.pos, $pos);
+            assert!($sg.valid);
         };
     }
 
@@ -396,5 +422,49 @@ mod tests {
             &["red", "lime", "blue"],
             &[0.0, 0.0, 0.0]
         );
+    }
+
+    #[test]
+    fn invalid_gradients() {
+        let result = parse_svg(
+            r##"
+        <!-- invalid color -->
+        
+        <linearGradient>
+            <stop offset="50%" stop-color="stone" />
+        </linearGradient>
+        
+        <linearGradient>
+            <stop offset="50%" style="stop-color:#zzz;" />
+        </linearGradient>
+        
+        <!-- invalid offset -->
+        
+        <linearGradient>
+            <stop offset="5x%" stop-color="gold" />
+        </linearGradient>
+        
+        <!-- invalid color & offset -->
+        
+        <linearGradient>
+            <stop offset="x" stop-color="stone" />
+        </linearGradient>
+        
+        <!-- invalid opacity -->
+        
+        <linearGradient>
+            <stop offset="50%" stop-color="red" stop-opacity="0.5x" />
+        </linearGradient>
+        
+        <linearGradient>
+            <stop offset="50%" stop-color="red" style="stop-opacity:%;" />
+        </linearGradient>
+        "##,
+        );
+        assert_eq!(result.len(), 6);
+        for g in &result {
+            assert_eq!(g.valid, false);
+            assert_eq!(g.id, None);
+        }
     }
 }
