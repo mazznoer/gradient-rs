@@ -1,4 +1,5 @@
 use colorgrad::{BlendMode, Color, Gradient, GradientBuilder};
+use std::path::PathBuf;
 use svg::node::element::tag as svg_tag;
 use svg::parser::Event;
 
@@ -150,6 +151,7 @@ pub fn to_gradients(
     data: Vec<SvgGradient>,
     mode: BlendMode,
     imode: Interpolation,
+    path: &PathBuf,
 ) -> Vec<(Box<dyn Gradient>, Option<String>)> {
     let mut gradients = Vec::new();
 
@@ -162,12 +164,12 @@ pub fn to_gradients(
                 .unwrap_or("[without id]".into());
 
         if !g.valid {
-            eprintln!("{id}: invalid stop");
+            eprintln!("{} {id} invalid stop", path.display());
             continue;
         }
 
         if g.colors.is_empty() {
-            eprintln!("{id}: empty");
+            eprintln!("{} {id} empty", path.display());
             continue;
         }
 

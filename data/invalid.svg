@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+	<defs>
+		<linearGradient id="g77">
+			<stop offset="50%" stop-color="#ffx" />
+		</linearGradient>
+		
+		<linearGradient id="g58">
+			<stop offset="5x%" stop-color="tomato" />
+		</linearGradient>
+		
+		<linearGradient id="g93">
+			<stop offset="x" stop-color="#fof" />
+		</linearGradient>
+		
+		<linearGradient>
+			<stop offset="0.5" stop-color="red" stop-opacity="x" />
+		</linearGradient>
+		
+		<linearGradient id="g64">
+		</linearGradient>
+	</defs>
+</svg>

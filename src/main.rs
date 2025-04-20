@@ -230,11 +230,7 @@ impl GradientApp<'_> {
 
         for path in self.opt.file.as_ref().unwrap().clone() {
             if !path.exists() {
-                write!(
-                    self.stdout,
-                    "{}\n  \x1B[31mFile not found\x1B[39m\n",
-                    &path.display()
-                )?;
+                eprintln!("{}: file not found.", &path.display());
                 status = 1;
                 continue;
             }
@@ -242,10 +238,6 @@ impl GradientApp<'_> {
             if let Some(ext) = path.extension().and_then(OsStr::to_str) {
                 match ext.to_lowercase().as_ref() {
                     "ggr" => {
-                        if self.is_terminal || (self.output_mode == OutputMode::Gradient) {
-                            write!(self.stdout, "{}", &path.display())?;
-                        }
-
                         let f = File::open(&path)?;
 
                         match colorgrad::GimpGradient::new(
@@ -255,15 +247,22 @@ impl GradientApp<'_> {
                         ) {
                             Ok(grad) => {
                                 if self.is_terminal || (self.output_mode == OutputMode::Gradient) {
-                                    writeln!(self.stdout, " \x1B[1m{}\x1B[0m", grad.name())?;
+                                    writeln!(
+                                        self.stdout,
+                                        "{} \x1B[1m{}\x1B[0m",
+                                        &path.display(),
+                                        grad.name()
+                                    )?;
                                 }
 
                                 self.handle_output(&grad)?;
                             }
 
-                            Err(err) => {
+                            Err(_) => {
                                 if self.is_terminal || (self.output_mode == OutputMode::Gradient) {
-                                    writeln!(self.stdout, "\n  \x1B[31m{err}\x1B[39m")?;
+                                    eprintln!("{} (invalid GIMP gradient)", &path.display());
+                                    status = 1;
+                                    continue;
                                 }
                             }
                         }
@@ -283,13 +282,14 @@ impl GradientApp<'_> {
                         };
                         let interp = self.opt.interpolation.unwrap_or(Interpolation::CatmullRom);
                         let gds = svg_gradient::parse_svg(&content);
-                        let gradients = svg_gradient::to_gradients(gds, mode, interp);
+                        let gradients = svg_gradient::to_gradients(gds, mode, interp, &path);
 
                         if (self.is_terminal || (self.output_mode == OutputMode::Gradient))
                             && gradients.is_empty()
                         {
-                            writeln!(self.stdout, "{filename}")?;
-                            writeln!(self.stdout, "  \x1B[31mNo gradients.\x1B[39m")?;
+                            eprintln!("{} (no valid gradients found)", &path.display());
+                            status = 1;
+                            continue;
                         }
 
                         for (grad, id) in gradients {
@@ -318,7 +318,11 @@ impl GradientApp<'_> {
                             }
                         }
                     }
-                    _ => continue,
+                    _ => {
+                        eprintln!("{}: file format not supported.", &path.display());
+                        status = 1;
+                        continue;
+                    }
                 }
             }
         }

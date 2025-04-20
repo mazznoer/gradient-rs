@@ -1,7 +1,9 @@
 use assert_cmd::Command;
 
 fn gradient() -> Command {
-    Command::cargo_bin("gradient").unwrap()
+    let mut cmd = Command::cargo_bin("gradient").unwrap();
+    cmd.current_dir(env!("CARGO_MANIFEST_DIR"));
+    cmd
 }
 
 #[test]
@@ -37,10 +39,78 @@ fn basic() {
         ));
 
     gradient()
-        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .args(&[
+            "--custom",
+            "gold;purple;red",
+            "--position",
+            "0",
+            "70",
+            "100",
+            "--blend-mode",
+            "lab",
+            "--interpolation",
+            "basis",
+        ])
+        .assert()
+        .success();
+
+    gradient()
         .arg("--file")
         .arg("data/gradients.svg")
         .arg("data/Neon_Green.ggr")
         .assert()
         .success();
+}
+
+#[test]
+fn invalid() {
+    // invalid preset name
+    gradient().arg("--preset").arg("sunset").assert().failure();
+
+    // invalid CSS gradient
+    gradient()
+        .arg("--css")
+        .arg("red, 25%, 70%, blue")
+        .assert()
+        .failure();
+
+    // invalid position
+    gradient()
+        .arg("--custom")
+        .arg("red;lime")
+        .arg("--position")
+        .args(&["0", "0.5", "1"])
+        .assert()
+        .failure();
+
+    // invalid SVG gradient
+    gradient()
+        .arg("--file")
+        .arg("data/invalid.svg")
+        .assert()
+        .failure();
+
+    // invalid GIMP gradient
+    gradient()
+        .arg("--file")
+        .arg("data/invalid.ggr")
+        .assert()
+        .failure()
+        .stderr("data/invalid.ggr (invalid GIMP gradient)\n");
+
+    // non-existent file
+    gradient()
+        .arg("--file")
+        .arg("gradients.svg")
+        .assert()
+        .failure()
+        .stderr("gradients.svg: file not found.\n");
+
+    // unsupported file format
+    gradient()
+        .arg("--file")
+        .arg("Cargo.toml")
+        .assert()
+        .failure()
+        .stderr("Cargo.toml: file format not supported.\n");
 }
