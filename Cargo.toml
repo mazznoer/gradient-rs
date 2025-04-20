@@ -33,3 +33,6 @@ clap = { version = "4.5", features = ["derive", "wrap_help"] }
 clap_complete = "4.5"
 #colorgrad = { version = "0.7", features = ["lab", "ggr"] }
 colorgrad = { git = "https://github.com/mazznoer/colorgrad-rs", features = ["lab", "ggr"] }
+
+[dev-dependencies]
+assert_cmd = "2.0"
