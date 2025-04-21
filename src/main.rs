@@ -269,7 +269,6 @@ impl GradientApp<'_> {
                     }
 
                     "svg" => {
-                        let filename = &path.display().to_string();
                         let mut file = File::open(&path)?;
                         let mut content = String::new();
                         file.read_to_string(&mut content)?;
@@ -281,41 +280,34 @@ impl GradientApp<'_> {
                             _ => colorgrad::BlendMode::Oklab,
                         };
                         let interp = self.opt.interpolation.unwrap_or(Interpolation::CatmullRom);
-                        let gds = svg_gradient::parse_svg(&content);
+                        let gds = svg_gradient::parse_svg(&content, self.opt.svg_id.as_deref());
                         let gradients = svg_gradient::to_gradients(gds, mode, interp, &path);
 
                         if (self.is_terminal || (self.output_mode == OutputMode::Gradient))
                             && gradients.is_empty()
                         {
-                            eprintln!("{} (no valid gradients found)", &path.display());
+                            if let Some(ref id) = self.opt.svg_id {
+                                eprintln!(
+                                    "{}: no gradient found with id \x1B[1m#{id}\x1B[0m",
+                                    &path.display()
+                                );
+                            } else {
+                                eprintln!("{} (no valid gradients found)", &path.display());
+                            }
                             status = 1;
                             continue;
                         }
 
                         for (grad, id) in gradients {
-                            let (id, stop) = if let Some(id) = id {
-                                if let Some(ref id2) = self.opt.svg_id {
-                                    if &id == id2 {
-                                        (format!("#{id}"), true)
-                                    } else {
-                                        continue;
-                                    }
-                                } else {
-                                    (format!("#{id}"), false)
-                                }
-                            } else {
-                                ("".into(), false)
-                            };
-
                             if self.is_terminal || (self.output_mode == OutputMode::Gradient) {
-                                writeln!(self.stdout, "{filename} \x1B[1m{id}\x1B[0m")?;
+                                let id = id
+                                    .as_ref()
+                                    .map(|s| format!("#{s}"))
+                                    .unwrap_or("[without id]".into());
+                                writeln!(self.stdout, "{} \x1B[1m{id}\x1B[0m", &path.display())?;
                             }
 
                             self.handle_output(&grad)?;
-
-                            if stop {
-                                break;
-                            }
                         }
                     }
                     _ => {

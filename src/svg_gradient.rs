@@ -1,5 +1,5 @@
 use colorgrad::{BlendMode, Color, Gradient, GradientBuilder};
-use std::path::PathBuf;
+use std::path::Path;
 use svg::node::element::tag as svg_tag;
 use svg::parser::Event;
 
@@ -42,18 +42,28 @@ pub struct SvgGradient {
     valid: bool,
 }
 
-pub fn parse_svg(s: &str) -> Vec<SvgGradient> {
+pub fn parse_svg(s: &str, target_id: Option<&str>) -> Vec<SvgGradient> {
     let mut res = Vec::new();
     let mut index = 0;
     let mut prev_pos = f32::NEG_INFINITY;
+    let mut skip = false;
 
     for event in svg::read(s).unwrap() {
         match event {
             Event::Tag(svg_tag::LinearGradient, t, attributes)
             | Event::Tag(svg_tag::RadialGradient, t, attributes) => match t {
                 svg_tag::Type::Start => {
+                    let id = attributes.get("id").map(|v| v.to_string());
+                    skip = match (id.as_ref(), target_id) {
+                        (Some(a), Some(b)) => a != b,
+                        (None, Some(_)) => true,
+                        _ => false,
+                    };
+                    if skip {
+                        continue;
+                    }
                     res.push(SvgGradient {
-                        id: attributes.get("id").map(|v| v.to_string()),
+                        id,
                         colors: Vec::new(),
                         pos: Vec::new(),
                         valid: true,
@@ -61,14 +71,18 @@ pub fn parse_svg(s: &str) -> Vec<SvgGradient> {
                 }
 
                 svg_tag::Type::End => {
-                    index += 1;
+                    if skip {
+                        skip = false;
+                    } else {
+                        index += 1;
+                    }
                     prev_pos = f32::NEG_INFINITY;
                 }
 
                 svg_tag::Type::Empty => {}
             },
             Event::Tag(svg_tag::Stop, _, attributes) => {
-                if res.is_empty() {
+                if skip || res.is_empty() {
                     continue;
                 }
 
@@ -151,7 +165,7 @@ pub fn to_gradients(
     data: Vec<SvgGradient>,
     mode: BlendMode,
     imode: Interpolation,
-    path: &PathBuf,
+    path: &Path,
 ) -> Vec<(Box<dyn Gradient>, Option<String>)> {
     let mut gradients = Vec::new();
 
@@ -259,6 +273,7 @@ mod tests {
             <stop offset="1" stop-color="#FFD700" />
         </linearGradient>
         "##,
+            None,
         );
         assert_eq!(result.len(), 1);
         assert_gradient!(
@@ -277,6 +292,7 @@ mod tests {
             <stop offset="100%" stop-color="seagreen" />
         </linearGradient>
         "##,
+            None,
         );
         assert_eq!(result.len(), 1);
         assert_gradient!(
@@ -295,6 +311,7 @@ mod tests {
             <stop offset="1" stop-color="seagreen" />
         </radialGradient>
         "##,
+            None,
         );
         assert_eq!(result.len(), 1);
         assert_gradient!(
@@ -318,6 +335,7 @@ mod tests {
             <stop offset="1" style="stop-color:steelblue;" />
         </linearGradient>
         "##,
+            None,
         );
         assert_eq!(result.len(), 1);
         assert_gradient!(
@@ -344,6 +362,7 @@ mod tests {
             <stop offset="1" stop-color="#ffe04d" />
         </linearGradient>
         "##,
+            None,
         );
         assert_eq!(result.len(), 2);
         assert_gradient!(
@@ -368,6 +387,7 @@ mod tests {
             <stop stop-color="steelblue" />
         </linearGradient>
         "##,
+            None,
         );
         assert_eq!(result.len(), 1);
         assert_gradient!(
@@ -376,6 +396,64 @@ mod tests {
             &["black", "gold", "steelblue"],
             &[0.0, 0.7, 0.7]
         );
+    }
+
+    #[test]
+    fn filter_by_id() {
+        let s = r##"
+        <linearGradient id="guava">
+            <stop offset="0.1" stop-color="#f00" />
+            <stop offset="0.5" stop-color="#0f0" />
+            <stop offset="0.9" stop-color="#00f" />
+        </linearGradient>
+        
+        <linearGradient id="avocado">
+            <stop offset="20%" stop-color="#ff0" />
+            <stop offset="40%" stop-color="#f0f" />
+            <stop offset="80%" stop-color="#0ff" />
+        </linearGradient>
+        
+        <linearGradient>
+            <stop offset="0" stop-color="#0f0" />
+        </linearGradient>
+        
+        <linearGradient id="">
+            <stop offset="1" stop-color="#123456" />
+        </linearGradient>
+        
+        <radialGradient id="guava">
+            <stop offset="35%" stop-color="#abc123" />
+        </radialGradient>
+        "##;
+
+        let result = parse_svg(s, None);
+        assert_eq!(result.len(), 5);
+
+        let result = parse_svg(s, Some("guava"));
+        assert_eq!(result.len(), 2);
+        assert_gradient!(
+            result[0],
+            "guava",
+            &["#ff0000", "#00ff00", "#0000ff"],
+            &[0.1, 0.5, 0.9]
+        );
+        assert_gradient!(result[1], "guava", &["#abc123"], &[0.35]);
+
+        let result = parse_svg(s, Some("avocado"));
+        assert_eq!(result.len(), 1);
+        assert_gradient!(
+            result[0],
+            "avocado",
+            &["#ffff00", "#ff00ff", "#00ffff"],
+            &[0.2, 0.4, 0.8]
+        );
+
+        let result = parse_svg(s, Some(""));
+        assert_eq!(result.len(), 1);
+        assert_gradient!(result[0], "", &["#123456"], &[1.0]);
+
+        let result = parse_svg(s, Some("pineapple"));
+        assert!(result.is_empty());
     }
 
     #[test]
@@ -403,6 +481,7 @@ mod tests {
             <stop stop-color="blue" />
         </linearGradient>
         "##,
+            None,
         );
         assert_eq!(result.len(), 4);
         assert_gradient!(result[0], "empty", &[], &[]);
@@ -462,6 +541,7 @@ mod tests {
             <stop offset="50%" stop-color="red" style="stop-opacity:%;" />
         </linearGradient>
         "##,
+            None,
         );
         assert_eq!(result.len(), 6);
         for g in &result {
