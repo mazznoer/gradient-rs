@@ -23,13 +23,13 @@ jobs:
 
     - name: Build
       run: |
-        cargo build --verbose --all-features
+        cargo build --all-features
       env:
         OUT_DIR: target
 
     - name: Run tests
       run: |
-        cargo test --verbose --all-features
+        cargo test --all-features
 
     - name: Run cargo clippy
       run: |
@@ -47,7 +47,6 @@ jobs:
     - name: Run gradient
       if: matrix.os != 'windows-latest'
       run: |
-        ./target/debug/gradient --help
         echo "Preset"
         ./target/debug/gradient -p magma -W 45
         echo "Take colors"
@@ -58,7 +57,6 @@ jobs:
     - name: Run gradient (Windows)
       if: matrix.os == 'windows-latest'
       run: |
-        target/debug/gradient --help
         echo "Preset"
         target/debug/gradient -p magma -W 45
         echo "Take colors"
