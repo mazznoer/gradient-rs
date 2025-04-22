@@ -1,9 +1,6 @@
-use colorgrad::{BlendMode, Color, Gradient, GradientBuilder};
-use std::path::Path;
+use colorgrad::Color;
 use svg::node::element::tag as svg_tag;
 use svg::parser::Event;
-
-use crate::Interpolation;
 
 fn parse_percent_or_float(s: &str) -> Option<f32> {
     if let Some(s) = s.strip_suffix('%') {
@@ -36,16 +33,17 @@ fn parse_styles(s: &str) -> (Option<&str>, Option<&str>) {
 
 #[derive(Debug)]
 pub struct SvgGradient {
-    id: Option<String>,
-    colors: Vec<Color>,
-    pos: Vec<f32>,
-    valid: bool,
+    pub id: Option<String>,
+    pub colors: Vec<Color>,
+    pub pos: Vec<f32>,
+    pub valid: bool,
 }
 
 pub fn parse_svg(s: &str, target_id: Option<&str>) -> Vec<SvgGradient> {
     let mut res = Vec::new();
     let mut index = 0;
     let mut prev_pos = f32::NEG_INFINITY;
+    let mut inside = false;
     let mut skip = false;
 
     for event in svg::read(s).unwrap() {
@@ -62,6 +60,7 @@ pub fn parse_svg(s: &str, target_id: Option<&str>) -> Vec<SvgGradient> {
                     if skip {
                         continue;
                     }
+                    inside = true;
                     res.push(SvgGradient {
                         id,
                         colors: Vec::new(),
@@ -71,18 +70,17 @@ pub fn parse_svg(s: &str, target_id: Option<&str>) -> Vec<SvgGradient> {
                 }
 
                 svg_tag::Type::End => {
-                    if skip {
-                        skip = false;
-                    } else {
+                    if inside && !skip {
                         index += 1;
                     }
+                    inside = false;
                     prev_pos = f32::NEG_INFINITY;
                 }
 
                 svg_tag::Type::Empty => {}
             },
             Event::Tag(svg_tag::Stop, _, attributes) => {
-                if skip || res.is_empty() {
+                if !inside || skip || res.is_empty() {
                     continue;
                 }
 
@@ -159,65 +157,6 @@ pub fn parse_svg(s: &str, target_id: Option<&str>) -> Vec<SvgGradient> {
     }
 
     res
-}
-
-pub fn to_gradients(
-    data: Vec<SvgGradient>,
-    mode: BlendMode,
-    imode: Interpolation,
-    path: &Path,
-) -> Vec<(Box<dyn Gradient>, Option<String>)> {
-    let mut gradients = Vec::new();
-
-    for mut g in data {
-        assert!(g.colors.len() == g.pos.len());
-
-        let id =
-            g.id.as_ref()
-                .map(|s| format!("\x1B[1m#{s}\x1B[0m"))
-                .unwrap_or("[without id]".into());
-
-        if !g.valid {
-            eprintln!("{} {id} invalid stop", path.display());
-            continue;
-        }
-
-        if g.colors.is_empty() {
-            eprintln!("{} {id} empty", path.display());
-            continue;
-        }
-
-        if g.pos[0] > 0.0 {
-            g.pos.insert(0, 0.0);
-            g.colors.insert(0, g.colors[0].clone());
-        }
-
-        if g.pos.last().unwrap() < &1.0 {
-            g.pos.push(1.0);
-            g.colors.push(g.colors.last().unwrap().clone());
-        }
-
-        let mut gb = GradientBuilder::new();
-        gb.colors(&g.colors).domain(&g.pos).mode(mode);
-
-        let efn = |e| eprintln!("{e}");
-
-        match imode {
-            Interpolation::Linear => gb
-                .build::<colorgrad::LinearGradient>()
-                .map_or_else(efn, |v| gradients.push((v.boxed(), g.id))),
-
-            Interpolation::Basis => gb
-                .build::<colorgrad::BasisGradient>()
-                .map_or_else(efn, |v| gradients.push((v.boxed(), g.id))),
-
-            Interpolation::CatmullRom => gb
-                .build::<colorgrad::CatmullRomGradient>()
-                .map_or_else(efn, |v| gradients.push((v.boxed(), g.id))),
-        };
-    }
-
-    gradients
 }
 
 #[cfg(test)]
@@ -460,14 +399,22 @@ mod tests {
     fn malformed_gradients() {
         let result = parse_svg(
             r##"
+        <!-- orphaned stop will be ignored -->
+        <stop offset="0" stop-color="pink" />
+        
         <linearGradient id="empty">
         </linearGradient>
+        
+        <stop offset="0" stop-color="red" />
         
         <linearGradient id="empty-stops">
             <stop />
             <stop />
             <stop />
         </linearGradient>
+        
+        <stop offset="0" stop-color="gold" />
+        <stop offset="0" stop-color="plum" />
         
         <linearGradient id="without-color">
             <stop offset="0%" />

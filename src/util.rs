@@ -28,6 +28,10 @@ pub fn color_to_ansi(col: &Color, cb: &[Color; 2], width: usize) -> String {
     ss
 }
 
+pub fn bold(s: &str) -> String {
+    format!("\x1B[1m{s}\x1B[0m")
+}
+
 fn format_alpha(a: f32) -> String {
     if a >= 1.0 {
         return "".into();

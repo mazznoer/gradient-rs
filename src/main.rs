@@ -1,5 +1,5 @@
 use clap::Parser;
-use colorgrad::{Color, Gradient};
+use colorgrad::{Color, GimpGradient, Gradient};
 use std::io::{self, BufReader, IsTerminal, Read, Write};
 use std::{ffi::OsStr, fs::File, process::exit};
 
@@ -8,6 +8,7 @@ use cli::{BlendMode, Interpolation, Opt, OutputColor, PRESET_NAMES};
 
 mod svg_gradient;
 mod util;
+use util::bold;
 
 #[derive(PartialEq)]
 enum OutputMode {
@@ -214,6 +215,8 @@ impl GradientApp<'_> {
     }
 
     fn file_gradient(&mut self) -> io::Result<i32> {
+        use colorgrad::{BasisGradient, CatmullRomGradient, GradientBuilder, LinearGradient};
+
         let ggr_bg_color = if let Some(ref c) = self.opt.ggr_bg {
             c.clone()
         } else {
@@ -226,6 +229,7 @@ impl GradientApp<'_> {
             Color::new(0.0, 0.0, 0.0, 1.0)
         };
 
+        let show_info = self.is_terminal || self.output_mode == OutputMode::Gradient;
         let mut status = 0;
 
         for path in self.opt.file.as_ref().unwrap().clone() {
@@ -235,87 +239,118 @@ impl GradientApp<'_> {
                 continue;
             }
 
-            if let Some(ext) = path.extension().and_then(OsStr::to_str) {
-                match ext.to_lowercase().as_ref() {
-                    "ggr" => {
-                        let f = File::open(&path)?;
+            let Some(ext) = path.extension().and_then(OsStr::to_str) else {
+                eprintln!("{}: file format not supported.", &path.display());
+                status = 1;
+                continue;
+            };
 
-                        match colorgrad::GimpGradient::new(
-                            BufReader::new(f),
-                            &ggr_fg_color,
-                            &ggr_bg_color,
-                        ) {
-                            Ok(grad) => {
-                                if self.is_terminal || (self.output_mode == OutputMode::Gradient) {
-                                    writeln!(
-                                        self.stdout,
-                                        "{} \x1B[1m{}\x1B[0m",
-                                        &path.display(),
-                                        grad.name()
-                                    )?;
-                                }
+            let ext = ext.to_lowercase();
 
-                                self.handle_output(&grad)?;
-                            }
-
-                            Err(_) => {
-                                if self.is_terminal || (self.output_mode == OutputMode::Gradient) {
-                                    eprintln!("{} (invalid GIMP gradient)", &path.display());
-                                    status = 1;
-                                    continue;
-                                }
-                            }
+            if &ext == "ggr" {
+                match GimpGradient::new(
+                    BufReader::new(File::open(&path)?),
+                    &ggr_fg_color,
+                    &ggr_bg_color,
+                ) {
+                    Ok(grad) => {
+                        if show_info {
+                            writeln!(self.stdout, "{} {}", &path.display(), bold(grad.name()))?;
                         }
+                        self.handle_output(&grad)?;
                     }
-
-                    "svg" => {
-                        let mut file = File::open(&path)?;
-                        let mut content = String::new();
-                        file.read_to_string(&mut content)?;
-
-                        let mode = match self.opt.blend_mode {
-                            Some(BlendMode::Rgb) => colorgrad::BlendMode::Rgb,
-                            Some(BlendMode::LinearRgb) => colorgrad::BlendMode::LinearRgb,
-                            Some(BlendMode::Lab) => colorgrad::BlendMode::Lab,
-                            _ => colorgrad::BlendMode::Oklab,
-                        };
-                        let interp = self.opt.interpolation.unwrap_or(Interpolation::CatmullRom);
-                        let gds = svg_gradient::parse_svg(&content, self.opt.svg_id.as_deref());
-                        let gradients = svg_gradient::to_gradients(gds, mode, interp, &path);
-
-                        if (self.is_terminal || (self.output_mode == OutputMode::Gradient))
-                            && gradients.is_empty()
-                        {
-                            if let Some(ref id) = self.opt.svg_id {
-                                eprintln!(
-                                    "{}: no gradient found with id \x1B[1m#{id}\x1B[0m",
-                                    &path.display()
-                                );
-                            } else {
-                                eprintln!("{} (no valid gradients found)", &path.display());
-                            }
-                            status = 1;
-                            continue;
-                        }
-
-                        for (grad, id) in gradients {
-                            if self.is_terminal || (self.output_mode == OutputMode::Gradient) {
-                                let id = id
-                                    .as_ref()
-                                    .map(|s| format!("#{s}"))
-                                    .unwrap_or("[without id]".into());
-                                writeln!(self.stdout, "{} \x1B[1m{id}\x1B[0m", &path.display())?;
-                            }
-
-                            self.handle_output(&grad)?;
-                        }
-                    }
-                    _ => {
-                        eprintln!("{}: file format not supported.", &path.display());
+                    Err(_) => {
+                        eprintln!("{} (invalid GIMP gradient)", &path.display());
                         status = 1;
                         continue;
                     }
                 }
+            } else if &ext == "svg" {
+                let mut file = File::open(&path)?;
+                let mut content = String::new();
+                file.read_to_string(&mut content)?;
+                let svg_grads = svg_gradient::parse_svg(&content, self.opt.svg_id.as_deref());
+
+                let cmode = match self.opt.blend_mode {
+                    Some(BlendMode::Rgb) => colorgrad::BlendMode::Rgb,
+                    Some(BlendMode::LinearRgb) => colorgrad::BlendMode::LinearRgb,
+                    Some(BlendMode::Lab) => colorgrad::BlendMode::Lab,
+                    _ => colorgrad::BlendMode::Oklab,
+                };
+                let mut valid = 0;
+                let mut invalid = 0;
+
+                for mut sg in svg_grads {
+                    assert_eq!(sg.colors.len(), sg.pos.len());
+
+                    let id = sg
+                        .id
+                        .as_ref()
+                        .map(|s| format!("#{s}"))
+                        .unwrap_or("[without id]".into());
+
+                    if !sg.valid {
+                        eprintln!("{} {} (invalid stop)", &path.display(), bold(&id));
+                        status = 1;
+                        invalid += 1;
+                        continue;
+                    }
+
+                    if sg.colors.is_empty() {
+                        eprintln!("{} {} (empty)", &path.display(), bold(&id));
+                        status = 1;
+                        invalid += 1;
+                        continue;
+                    }
+
+                    if show_info {
+                        writeln!(self.stdout, "{} {}", &path.display(), bold(&id))?;
+                    }
+
+                    if sg.pos[0] > 0.0 {
+                        sg.pos.insert(0, 0.0);
+                        sg.colors.insert(0, sg.colors[0].clone());
+                    }
+                    let last = sg.colors.len() - 1;
+
+                    if sg.pos[last] < 1.0 {
+                        sg.pos.push(1.0);
+                        sg.colors.push(sg.colors[last].clone());
+                    }
+
+                    let mut gb = GradientBuilder::new();
+                    gb.colors(&sg.colors);
+                    gb.domain(&sg.pos);
+                    gb.mode(cmode);
+
+                    match self.opt.interpolation {
+                        Some(Interpolation::Linear) => {
+                            let g: LinearGradient = gb.build().unwrap();
+                            self.handle_output(&g)?;
+                        }
+                        Some(Interpolation::Basis) => {
+                            let g: BasisGradient = gb.build().unwrap();
+                            self.handle_output(&g)?;
+                        }
+                        _ => {
+                            let g: CatmullRomGradient = gb.build().unwrap();
+                            self.handle_output(&g)?;
+                        }
+                    }
+                    valid += 1;
+                }
+
+                if valid == 0 && invalid == 0 {
+                    if self.opt.svg_id.is_some() {
+                        eprintln!("{} -- (nothing matched)", &path.display(),);
+                    } else {
+                        eprintln!("{} -- (no gradients found)", &path.display());
+                    }
+                    status = 1;
+                }
+            } else {
+                eprintln!("{}: file format not supported.", &path.display());
+                status = 1;
             }
         }
 
@@ -456,10 +491,6 @@ impl GradientApp<'_> {
                 .collect()
         }
 
-        fn bold(s: &str) -> String {
-            format!("\x1B[1m{s}\x1B[0m")
-        }
-
         let prompt = "\u{21AA} ";
         self.width = self.term_width.min(80);
         self.height = 2;
@@ -504,9 +535,8 @@ impl GradientApp<'_> {
         writeln!(self.stdout, "Neon_Green.ggr {}", bold("Neon Green"))?;
         const GGR_SAMPLE: &str = include_str!("../data/Neon_Green.ggr");
         let color = Color::default();
-        let grad =
-            colorgrad::GimpGradient::new(BufReader::new(GGR_SAMPLE.as_bytes()), &color, &color)
-                .unwrap();
+        let br = BufReader::new(GGR_SAMPLE.as_bytes());
+        let grad = GimpGradient::new(br, &color, &color).unwrap();
         self.display_gradient(&grad)?;
 
         writeln!(self.stdout, "{prompt} gradient --preset viridis --take 10")?;
