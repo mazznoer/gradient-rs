@@ -39,6 +39,14 @@ fn basic() {
         ));
 
     gradient()
+        .arg("--custom")
+        .arg("hwb(75, 25%, 10%)")
+        .arg("#bad455")
+        .arg("goldenrod")
+        .assert()
+        .success();
+
+    gradient()
         .args(&[
             "--custom",
             "gold;purple;red",
@@ -60,6 +68,34 @@ fn basic() {
         .arg("data/Neon_Green.ggr")
         .assert()
         .success();
+}
+
+#[test]
+fn others() {
+    // contains invalid gradient
+    gradient()
+        .arg("-f")
+        .arg("data/test1.svg")
+        .assert()
+        .failure();
+
+    // #grad-1 is a valid gradient
+    gradient()
+        .arg("-f")
+        .arg("data/test1.svg")
+        .arg("--svg-id")
+        .arg("grad-1")
+        .assert()
+        .success();
+
+    // #grad-0 is an invalid gradient
+    gradient()
+        .arg("-f")
+        .arg("data/test1.svg")
+        .arg("--svg-id")
+        .arg("grad-0")
+        .assert()
+        .failure();
 }
 
 #[test]
@@ -98,6 +134,13 @@ fn invalid() {
         .failure()
         .stderr("data/invalid.ggr (invalid GIMP gradient)\n");
 
+    // SVG without gradient
+    gradient()
+        .arg("--file")
+        .arg("data/no-gradient.svg")
+        .assert()
+        .failure();
+
     // non-existent file
     gradient()
         .arg("--file")
@@ -113,4 +156,11 @@ fn invalid() {
         .assert()
         .failure()
         .stderr("Cargo.toml: file format not supported.\n");
+
+    gradient()
+        .arg("--file")
+        .arg("Makefile")
+        .assert()
+        .failure()
+        .stderr("Makefile: file format not supported.\n");
 }
