@@ -63,6 +63,17 @@ fn basic() {
         .success();
 
     gradient()
+        .arg("-c")
+        .arg("#46f; #ab7; #abc456")
+        .arg("-P")
+        .arg("0, 73,100 ")
+        .arg("-s")
+        .arg(" 0,73.0, 100 , 120")
+        .assert()
+        .success()
+        .stdout("#4466ff\n#aabb77\n#abc456\n#abc456\n");
+
+    gradient()
         .arg("--file")
         .arg("data/gradients.svg")
         .arg("data/Neon_Green.ggr")

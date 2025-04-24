@@ -1,5 +1,6 @@
 use clap::{Parser, ValueEnum};
 use colorgrad::Color;
+use std::num::ParseFloatError;
 use std::path::PathBuf;
 
 #[derive(Clone, ValueEnum)]
@@ -92,6 +93,10 @@ const EXTRA_LONG_HELP: &str = "\x1B[1;4mUsage Examples:\x1B[0m
   URL: https://github.com/mazznoer/gradient-rs
 ";
 
+fn parse_f32(s: &str) -> Result<f32, ParseFloatError> {
+    s.trim().parse::<f32>()
+}
+
 #[derive(Clone, Default, Parser)]
 #[command(name = "gradient", author, version, about, after_help = EXTRA_HELP, after_long_help = EXTRA_LONG_HELP)]
 pub struct Opt {
@@ -108,7 +113,7 @@ pub struct Opt {
     pub custom: Option<Vec<Color>>,
 
     /// Custom gradient color position
-    #[arg(short = 'P', long, allow_negative_numbers = true, num_args = 2.., value_name = "FLOAT", help_heading = Some("CUSTOM GRADIENT"))]
+    #[arg(short = 'P', long, allow_negative_numbers = true, num_args = 1.., value_delimiter = ',', value_name = "FLOAT", value_parser = parse_f32, help_heading = Some("CUSTOM GRADIENT"))]
     pub position: Option<Vec<f32>>,
 
     /// Custom gradient using CSS gradient format
@@ -167,7 +172,7 @@ pub struct Opt {
     pub take: Option<usize>,
 
     /// Get color(s) at specific position
-    #[arg(short = 's', long, allow_negative_numbers = true, value_name = "FLOAT", num_args = 1..)]
+    #[arg(short = 's', long, allow_negative_numbers = true, value_delimiter = ',', value_name = "FLOAT", value_parser = parse_f32, num_args = 1..)]
     pub sample: Option<Vec<f32>>,
 
     /// Output color format
