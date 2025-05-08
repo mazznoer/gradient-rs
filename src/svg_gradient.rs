@@ -1,4 +1,5 @@
 use colorgrad::Color;
+use colorgrad::GradientBuilder;
 use svg::node::element::tag as svg_tag;
 use svg::parser::Event;
 
@@ -37,6 +38,27 @@ pub struct SvgGradient {
     pub colors: Vec<Color>,
     pub pos: Vec<f32>,
     pub valid: bool,
+}
+
+impl SvgGradient {
+    pub fn to_gradient_builder(&mut self) -> Option<GradientBuilder> {
+        if !self.valid || self.colors.is_empty() {
+            return None;
+        }
+        if self.pos[0] > 0.0 {
+            self.pos.insert(0, 0.0);
+            self.colors.insert(0, self.colors[0].clone());
+        }
+        let last = self.colors.len() - 1;
+        if self.pos[last] < 1.0 {
+            self.pos.push(1.0);
+            self.colors.push(self.colors[last].clone());
+        }
+        let mut gb = GradientBuilder::new();
+        gb.colors(&self.colors);
+        gb.domain(&self.pos);
+        Some(gb)
+    }
 }
 
 pub fn parse_svg(s: &str, target_id: Option<&str>) -> Vec<SvgGradient> {

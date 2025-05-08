@@ -215,7 +215,7 @@ impl GradientApp<'_> {
     }
 
     fn file_gradient(&mut self) -> io::Result<i32> {
-        use colorgrad::{BasisGradient, CatmullRomGradient, GradientBuilder, LinearGradient};
+        use colorgrad::{BasisGradient, CatmullRomGradient, LinearGradient};
 
         let ggr_bg_color = if let Some(ref c) = self.opt.ggr_bg {
             c.clone()
@@ -289,38 +289,17 @@ impl GradientApp<'_> {
                         .map(|s| format!("#{s}"))
                         .unwrap_or("[without id]".into());
 
-                    if !sg.valid {
-                        eprintln!("{} {} (invalid stop)", &path.display(), bold(&id));
+                    let Some(mut gb) = sg.to_gradient_builder() else {
+                        eprintln!("{} {} (invalid gradient)", &path.display(), bold(&id));
                         status = 1;
                         invalid += 1;
                         continue;
-                    }
-
-                    if sg.colors.is_empty() {
-                        eprintln!("{} {} (empty)", &path.display(), bold(&id));
-                        status = 1;
-                        invalid += 1;
-                        continue;
-                    }
+                    };
 
                     if show_info {
                         writeln!(self.stdout, "{} {}", &path.display(), bold(&id))?;
                     }
 
-                    if sg.pos[0] > 0.0 {
-                        sg.pos.insert(0, 0.0);
-                        sg.colors.insert(0, sg.colors[0].clone());
-                    }
-                    let last = sg.colors.len() - 1;
-
-                    if sg.pos[last] < 1.0 {
-                        sg.pos.push(1.0);
-                        sg.colors.push(sg.colors[last].clone());
-                    }
-
-                    let mut gb = GradientBuilder::new();
-                    gb.colors(&sg.colors);
-                    gb.domain(&sg.pos);
                     gb.mode(cmode);
 
                     match self.opt.interpolation {
