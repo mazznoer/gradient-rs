@@ -289,7 +289,7 @@ impl GradientApp<'_> {
                         .map(|s| format!("#{s}"))
                         .unwrap_or("[without id]".into());
 
-                    let Some(mut gb) = sg.to_gradient_builder() else {
+                    let Some(mut gb) = sg.gradient_builder() else {
                         eprintln!("{} {} (invalid gradient)", &path.display(), bold(&id));
                         status = 1;
                         invalid += 1;

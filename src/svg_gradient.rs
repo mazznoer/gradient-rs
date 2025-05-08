@@ -41,7 +41,7 @@ pub struct SvgGradient {
 }
 
 impl SvgGradient {
-    pub fn to_gradient_builder(&mut self) -> Option<GradientBuilder> {
+    pub fn gradient_builder(&mut self) -> Option<GradientBuilder> {
         if !self.valid || self.colors.is_empty() {
             return None;
         }
