@@ -43,6 +43,9 @@ fn basic() {
         .arg("hwb(75, 25%, 10%)")
         .arg("#bad455")
         .arg("goldenrod")
+        .arg("--cb-color")
+        .arg("#000")
+        .arg("red")
         .assert()
         .success();
 
@@ -116,6 +119,47 @@ fn invalid() {
     // invalid preset name
     gradient().arg("--preset").arg("sunset").assert().failure();
 
+    // conflicting arguments [--preset, --custom, --css]
+
+    gradient()
+        .arg("--preset")
+        .arg("plasma")
+        .arg("--custom")
+        .arg("red")
+        .arg("blue")
+        .assert()
+        .failure();
+
+    gradient()
+        .arg("--preset")
+        .arg("plasma")
+        .arg("--css")
+        .arg("red,blue")
+        .assert()
+        .failure();
+
+    gradient()
+        .arg("--custom")
+        .arg("red")
+        .arg("blue")
+        .arg("--css")
+        .arg("red,blue")
+        .assert()
+        .failure();
+
+    // conflicting arguments [--take, --sample]
+
+    gradient()
+        .arg("--preset")
+        .arg("plasma")
+        .arg("--take")
+        .arg("5")
+        .arg("--sample")
+        .arg("0.1")
+        .arg("0.73")
+        .assert()
+        .failure();
+
     // invalid CSS gradient
     gradient()
         .arg("--css")
@@ -164,7 +208,8 @@ fn invalid() {
         .failure()
         .stderr("gradients.svg: file not found.\n");
 
-    // unsupported file format
+    // unsupported file formats
+
     gradient()
         .arg("--file")
         .arg("Cargo.toml")
@@ -178,4 +223,31 @@ fn invalid() {
         .assert()
         .failure()
         .stderr("Makefile: file format not supported.\n");
+
+    // --cb-color need exactly 2 values
+
+    gradient()
+        .arg("--css")
+        .arg("f00, f000")
+        .arg("--cb-color")
+        .assert()
+        .failure();
+
+    gradient()
+        .arg("--css")
+        .arg("f00, f000")
+        .arg("--cb-color")
+        .arg("black")
+        .assert()
+        .failure();
+
+    gradient()
+        .arg("--css")
+        .arg("f00, f000")
+        .arg("--cb-color")
+        .arg("black")
+        .arg("gold")
+        .arg("lime")
+        .assert()
+        .failure();
 }

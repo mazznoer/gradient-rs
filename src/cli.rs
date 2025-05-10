@@ -200,7 +200,7 @@ pub struct Opt {
     pub width: Option<usize>,
     pub height: Option<usize>,
     pub background: Option<Color>,
-    pub cb_color: Option<Vec<Color>>,
+    pub cb_color: Option<[Color; 2]>,
     pub take: Option<usize>,
     pub sample: Option<Vec<f32>>,
     pub format: Option<OutputColor>,
@@ -236,9 +236,15 @@ pub fn parse_args() -> Result<Opt, lexopt::Error> {
                 opt.list_presets = true;
             }
             Short('p') | Long("preset") => {
+                if opt.custom.is_some() || opt.css.is_some() {
+                    return Err("choose one: --preset, --custom, --css".into());
+                }
                 opt.preset = Some(parser.value()?.parse_with(parse_preset_name)?);
             }
             Short('c') | Long("custom") => {
+                if opt.preset.is_some() || opt.css.is_some() {
+                    return Err("choose one: --preset, --custom, --css".into());
+                }
                 let res: Result<Vec<_>,_> = parser.values()?.map(|s|s.parse()).collect();
                 opt.custom = Some(res?);
             }
@@ -247,6 +253,9 @@ pub fn parse_args() -> Result<Opt, lexopt::Error> {
                 opt.position = Some(res?);
             }
             Short('C') | Long("css") => {
+                if opt.custom.is_some() || opt.preset.is_some() {
+                    return Err("choose one: --preset, --custom, --css".into());
+                }
                 opt.css = Some(parser.value()?.parse()?);
             }
             Short('m') | Long("blend-mode") => {
@@ -278,17 +287,21 @@ pub fn parse_args() -> Result<Opt, lexopt::Error> {
                 opt.background = Some(parser.value()?.parse()?);
             }
             Long("cb-color") => {
-                let res: Result<Vec<_>,_> = parser.values()?.take(2).map(|s|s.parse()).collect();
-                let res = res?;
-                if res.len() != 2 {
-                    return Err("--cb-color needs 2 COLOR".into());
-                }
-                opt.cb_color = Some(res);
+                opt.cb_color = Some([
+                    parser.value()?.parse()?,
+                    parser.value()?.parse()?,
+                ]);
             }
             Short('t') | Long("take") => {
+                if opt.sample.is_some() {
+                    return Err("--take cannot be used with --sample".into());
+                }
                 opt.take = Some(parser.value()?.parse()?);
             }
             Short('s') | Long("sample") => {
+                if opt.take.is_some() {
+                    return Err("--take cannot be used with --sample".into());
+                }
                 let res: Result<Vec<_>,_> = parser.values()?.map(|s|s.parse()).collect();
                 opt.sample = Some(res?);
             }
@@ -312,5 +325,5 @@ fn parse_preset_name(s: &str) -> Result<String, String> {
     if PRESET_NAMES.contains(&s) {
         return Ok(s.to_string());
     }
-    Err("invalid preset name".into())
+    Err("invalid preset name, try --list-presets".into())
 }

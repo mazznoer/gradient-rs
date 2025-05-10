@@ -50,7 +50,7 @@ impl GradientApp<'_> {
         };
 
         let cb_color = if let Some(ref c) = opt.cb_color {
-            [c[0].clone(), c[1].clone()]
+            c.clone()
         } else {
             [
                 Color::new(0.05, 0.05, 0.05, 1.0),
