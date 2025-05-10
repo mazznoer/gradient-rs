@@ -34,7 +34,7 @@ jobs:
           # create dir
           leading-dir: true
           # additional files
-          include: target/completions
+          #include: target/completions
         env:
           OUT_DIR: target
           # (required)
