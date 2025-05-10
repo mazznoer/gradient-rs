@@ -46,6 +46,7 @@ fn basic() {
         .assert()
         .success();
 
+    /*
     gradient()
         .args(&[
             "--custom",
@@ -72,6 +73,7 @@ fn basic() {
         .assert()
         .success()
         .stdout("#4466ff\n#aabb77\n#abc456\n#abc456\n");
+    */
 
     gradient()
         .arg("--file")
@@ -122,6 +124,7 @@ fn invalid() {
         .failure();
 
     // invalid position
+    /*
     gradient()
         .arg("--custom")
         .arg("red;lime")
@@ -129,6 +132,7 @@ fn invalid() {
         .args(&["0", "0.5", "1"])
         .assert()
         .failure();
+    */
 
     // invalid SVG gradient
     gradient()

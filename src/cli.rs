@@ -1,9 +1,9 @@
-use clap::{Parser, ValueEnum};
-use colorgrad::Color;
-use std::num::ParseFloatError;
 use std::path::PathBuf;
+use std::str::FromStr;
 
-#[derive(Clone, ValueEnum)]
+use colorgrad::Color;
+
+#[derive(Clone)]
 pub enum BlendMode {
     Rgb,
     LinearRgb,
@@ -11,14 +11,45 @@ pub enum BlendMode {
     Lab,
 }
 
-#[derive(Copy, Clone, ValueEnum)]
+impl FromStr for BlendMode {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "rgb" => Ok(Self::Rgb),
+            "linear-rgb" => Ok(Self::LinearRgb),
+            "oklab" => Ok(Self::Oklab),
+            "lab" => Ok(Self::Lab),
+            _ => Err(format!(
+                "Invalid --blend-mode '{s}' [pick from: rgb, linear-rgb, oklab, lab]"
+            )),
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
 pub enum Interpolation {
     Linear,
     Basis,
     CatmullRom,
 }
 
-#[derive(Copy, Clone, PartialEq, ValueEnum)]
+impl FromStr for Interpolation {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "linear" => Ok(Self::Linear),
+            "basis" => Ok(Self::Basis),
+            "catmull-rom" => Ok(Self::CatmullRom),
+            _ => Err(format!(
+                "Invalid --interpolation '{s}' [pick from: linear, basis, catmull-rom]"
+            )),
+        }
+    }
+}
+
+#[derive(Copy, Clone, PartialEq)]
 pub enum OutputColor {
     Hex,
     Rgb,
@@ -26,6 +57,24 @@ pub enum OutputColor {
     Hsl,
     Hsv,
     Hwb,
+}
+
+impl FromStr for OutputColor {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "hex" => Ok(Self::Hex),
+            "rgb" => Ok(Self::Rgb),
+            "rgb255" => Ok(Self::Rgb255),
+            "hsl" => Ok(Self::Hsl),
+            "hsv" => Ok(Self::Hsv),
+            "hwb" => Ok(Self::Hwb),
+            _ => Err(format!(
+                "Invalid --format '{s}' [pick from: hex, rgb, rgb255, hsl, hsv, hwb]"
+            )),
+        }
+    }
 }
 
 pub const PRESET_NAMES: [&str; 38] = [
@@ -69,10 +118,52 @@ pub const PRESET_NAMES: [&str; 38] = [
     "yl-or-rd",
 ];
 
-const EXTRA_HELP: &str =
-    "\x1B[1mCOLOR\x1B[0m can be specified using CSS color format <https://www.w3.org/TR/css-color-4/>.";
+const VERSION: &str = "\
+gradient v0.5.0
+";
 
-const EXTRA_LONG_HELP: &str = "\x1B[1;4mUsage Examples:\x1B[0m
+const HELP: &str = "\
+A command line tool for playing with color gradients
+
+Usage: gradient [OPTIONS]
+
+Options:
+  -W, --width <NUM>               Gradient display width [default: terminal width]
+  -H, --height <NUM>              Gradient display height [default: 2]
+  -b, --background <COLOR>        Background color [default: checkerboard]
+      --cb-color <COLOR> <COLOR>  Checkerboard color
+  -t, --take <NUM>                Get N colors evenly spaced across gradient
+  -s, --sample <FLOAT>...         Get color(s) at specific position
+  -o, --format <FORMAT>           Output color format [possible values: hex, rgb, rgb255, hsl, hsv, hwb]
+  -a, --array                     Print colors from --take or --sample, as array
+      --named-colors              Lists all CSS named colors
+  -h, --help                      Print help (see more with '--help')
+      --version                   Print version
+
+PRESET GRADIENT:
+  -l, --list-presets   Lists all available preset gradient names
+  -p, --preset <NAME>  Use the preset gradient
+
+CUSTOM GRADIENT:
+  -c, --custom <COLOR>...         Create custom gradient with the specified colors
+  -P, --position <FLOAT>...       Custom gradient color position
+  -C, --css <CSS-GRADIENT>        Custom gradient using CSS gradient format
+  -m, --blend-mode <COLOR-SPACE>  Custom gradient blending mode [default: oklab] [possible values: rgb,
+                                  linear-rgb, oklab, lab]
+  -i, --interpolation <MODE>      Custom gradient interpolation mode [default: catmull-rom] [possible values:
+                                  linear, basis, catmull-rom]
+
+GRADIENT FILE:
+      --ggr-bg <COLOR>  GGR background color [default: white]
+      --ggr-fg <COLOR>  GGR foreground color [default: black]
+      --svg-id <ID>     Pick SVG gradient by ID
+  -f, --file <FILE>...  Read gradient from SVG or GIMP gradient (ggr) file(s)
+
+\x1B[1mCOLOR\x1B[0m can be specified using CSS color format <https://www.w3.org/TR/css-color-4/>.
+";
+
+const EXTRA_HELP: &str = "
+\x1B[1;4mUsage Examples:\x1B[0m
   Display preset gradient
 
       \x1B[1m$\x1B[0m gradient --preset rainbow
@@ -93,103 +184,133 @@ const EXTRA_LONG_HELP: &str = "\x1B[1;4mUsage Examples:\x1B[0m
   URL: https://github.com/mazznoer/gradient-rs
 ";
 
-fn parse_f32(s: &str) -> Result<f32, ParseFloatError> {
-    s.trim().parse::<f32>()
-}
-
-#[derive(Clone, Default, Parser)]
-#[command(name = "gradient", author, version, about, after_help = EXTRA_HELP, after_long_help = EXTRA_LONG_HELP)]
+#[derive(Default)]
 pub struct Opt {
-    /// Lists all available preset gradient names
-    #[arg(short = 'l', long, help_heading = Some("PRESET GRADIENT"))]
     pub list_presets: bool,
-
-    /// Use the preset gradient
-    #[arg(short = 'p', long, value_parser = PRESET_NAMES, hide_possible_values = true, value_name = "NAME", help_heading = Some("PRESET GRADIENT"))]
     pub preset: Option<String>,
-
-    /// Create custom gradient with the specified colors
-    #[arg(short = 'c', long, num_args = 1.., value_delimiter = ';', value_name = "COLOR", conflicts_with = "preset", help_heading = Some("CUSTOM GRADIENT"))]
     pub custom: Option<Vec<Color>>,
-
-    /// Custom gradient color position
-    #[arg(short = 'P', long, allow_negative_numbers = true, num_args = 1.., value_delimiter = ',', value_name = "FLOAT", value_parser = parse_f32, help_heading = Some("CUSTOM GRADIENT"))]
     pub position: Option<Vec<f32>>,
-
-    /// Custom gradient using CSS gradient format
-    #[arg(short = 'C', long, value_name = "CSS-GRADIENT", help_heading = Some("CUSTOM GRADIENT"))]
     pub css: Option<String>,
-
-    /// Custom gradient blending mode [default: oklab]
-    #[arg(short = 'm', long, value_enum, value_name = "COLOR-SPACE", help_heading = Some("CUSTOM GRADIENT"))]
     pub blend_mode: Option<BlendMode>,
-
-    /// Custom gradient interpolation mode [default: catmull-rom]
-    #[arg(short = 'i', long, value_enum, value_name = "MODE", help_heading = Some("CUSTOM GRADIENT"))]
     pub interpolation: Option<Interpolation>,
-
-    /// GGR background color [default: white]
-    #[arg(long, value_name = "COLOR", help_heading = Some("GRADIENT FILE"))]
     pub ggr_bg: Option<Color>,
-
-    /// GGR foreground color [default: black]
-    #[arg(long, value_name = "COLOR", help_heading = Some("GRADIENT FILE"))]
     pub ggr_fg: Option<Color>,
-
-    /// Pick SVG gradient by ID
-    #[arg(long, value_name = "ID", help_heading = Some("GRADIENT FILE"))]
     pub svg_id: Option<String>,
-
-    /// Read gradient from SVG or GIMP gradient (ggr) file(s)
-    #[arg(
-        short = 'f',
-        long,
-        num_args = 1..,
-        value_name = "FILE",
-        value_parser = clap::value_parser!(PathBuf),
-        help_heading = Some("GRADIENT FILE")
-    )]
     pub file: Option<Vec<PathBuf>>,
-
-    /// Gradient display width [default: terminal width]
-    #[arg(short = 'W', long, value_name = "NUM")]
     pub width: Option<usize>,
-
-    /// Gradient display height [default: 2]
-    #[arg(short = 'H', long, value_name = "NUM")]
     pub height: Option<usize>,
-
-    /// Background color [default: checkerboard]
-    #[arg(short = 'b', long, value_name = "COLOR")]
     pub background: Option<Color>,
-
-    /// Checkerboard color
-    #[arg(long, number_of_values = 2, value_name = "COLOR")]
     pub cb_color: Option<Vec<Color>>,
-
-    /// Get N colors evenly spaced across gradient
-    #[arg(short = 't', long, value_name = "NUM", conflicts_with = "sample")]
     pub take: Option<usize>,
-
-    /// Get color(s) at specific position
-    #[arg(short = 's', long, allow_negative_numbers = true, value_delimiter = ',', value_name = "FLOAT", value_parser = parse_f32, num_args = 1..)]
     pub sample: Option<Vec<f32>>,
-
-    /// Output color format
-    #[arg(short = 'o', long, value_enum, value_name = "FORMAT")]
     pub format: Option<OutputColor>,
-
-    /// Print colors from --take or --sample, as array
-    #[arg(short = 'a', long)]
     pub array: bool,
-
-    /// Lists all CSS named colors
-    #[arg(long)]
     pub named_colors: bool,
 }
 
-#[test]
-fn verify_cli() {
-    use clap::CommandFactory;
-    Opt::command().debug_assert()
+#[rustfmt::skip]
+pub fn parse_args() -> Result<Opt, lexopt::Error> {
+    use std::process::exit;
+    use lexopt::prelude::*;
+
+    let mut opt: Opt = Default::default();
+
+    let mut parser = lexopt::Parser::from_env();
+
+    while let Some(arg) = parser.next()? {
+        match arg {
+            Short('h') => {
+                print!("{HELP}");
+                exit(0);
+            }
+            Long("help") => {
+                print!("{HELP}");
+                print!("{EXTRA_HELP}");
+                exit(0);
+            }
+            Long("version") => {
+                print!("{VERSION}");
+                exit(0);
+            }
+            Short('l') | Long("list-presets") => {
+                opt.list_presets = true;
+            }
+            Short('p') | Long("preset") => {
+                opt.preset = Some(parser.value()?.parse_with(parse_preset_name)?);
+            }
+            Short('c') | Long("custom") => {
+                let res: Result<Vec<_>,_> = parser.values()?.map(|s|s.parse()).collect();
+                opt.custom = Some(res?);
+            }
+            Short('P') | Long("position") => {
+                let res: Result<Vec<_>,_> = parser.values()?.map(|s|s.parse()).collect();
+                opt.position = Some(res?);
+            }
+            Short('C') | Long("css") => {
+                opt.css = Some(parser.value()?.parse()?);
+            }
+            Short('m') | Long("blend-mode") => {
+                opt.blend_mode = Some(parser.value()?.parse()?);
+            }
+            Short('i') | Long("interpolation") => {
+                opt.interpolation = Some(parser.value()?.parse()?);
+            }
+            Long("ggr-bg") => {
+                opt.ggr_bg = Some(parser.value()?.parse()?);
+            }
+            Long("ggr-fg") => {
+                opt.ggr_fg = Some(parser.value()?.parse()?);
+            }
+            Long("svg-id") => {
+                opt.svg_id = Some(parser.value()?.parse()?);
+            }
+            Short('f') | Long("file") => {
+                let res: Result<Vec<_>,_> = parser.values()?.map(|s|s.parse()).collect();
+                opt.file = Some(res?);
+            }
+            Short('W') | Long("width") => {
+                opt.width = Some(parser.value()?.parse()?);
+            }
+            Short('H') | Long("height") => {
+                opt.height = Some(parser.value()?.parse()?);
+            }
+            Short('b') | Long("background") => {
+                opt.background = Some(parser.value()?.parse()?);
+            }
+            Long("cb-color") => {
+                let res: Result<Vec<_>,_> = parser.values()?.take(2).map(|s|s.parse()).collect();
+                let res = res?;
+                if res.len() != 2 {
+                    return Err("--cb-color needs 2 COLOR".into());
+                }
+                opt.cb_color = Some(res);
+            }
+            Short('t') | Long("take") => {
+                opt.take = Some(parser.value()?.parse()?);
+            }
+            Short('s') | Long("sample") => {
+                let res: Result<Vec<_>,_> = parser.values()?.map(|s|s.parse()).collect();
+                opt.sample = Some(res?);
+            }
+            Short('o') | Long("format") => {
+                opt.format = Some(parser.value()?.parse()?);
+            }
+            Short('a') | Long("array") => {
+                opt.array = true;
+            }
+            Long("named-colors") => {
+                opt.named_colors = true;
+            }
+            _ => return Err(arg.unexpected()),
+        }
+    }
+
+    Ok(opt)
+}
+
+fn parse_preset_name(s: &str) -> Result<String, String> {
+    if PRESET_NAMES.contains(&s) {
+        return Ok(s.to_string());
+    }
+    Err("invalid preset name".into())
 }

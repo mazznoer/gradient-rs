@@ -1,12 +1,15 @@
-use clap::Parser;
-use colorgrad::{Color, GimpGradient, Gradient};
+use std::ffi::OsStr;
+use std::fs::File;
 use std::io::{self, BufReader, IsTerminal, Read, Write};
-use std::{ffi::OsStr, fs::File, process::exit};
+use std::process::exit;
+
+use colorgrad::{Color, GimpGradient, Gradient};
 
 mod cli;
 use cli::{BlendMode, Interpolation, Opt, OutputColor, PRESET_NAMES};
 
 mod svg_gradient;
+
 mod util;
 use util::bold;
 
@@ -530,7 +533,13 @@ impl GradientApp<'_> {
 }
 
 fn main() {
-    let opt = Opt::parse();
+    let opt = match cli::parse_args() {
+        Ok(opt) => opt,
+        Err(err) => {
+            eprintln!("Error: {err}.");
+            exit(1);
+        }
+    };
 
     let mut ga = GradientApp::new(opt, io::stdout());
 
