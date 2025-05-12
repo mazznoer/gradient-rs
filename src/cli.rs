@@ -335,8 +335,9 @@ pub fn parse_args() -> Result<Opt, lexopt::Error> {
 }
 
 fn parse_preset_name(s: &str) -> Result<String, String> {
-    if PRESET_NAMES.contains(&s) {
-        return Ok(s.to_string());
+    let s = s.to_lowercase();
+    if PRESET_NAMES.contains(&s.as_ref()) {
+        return Ok(s);
     }
     Err("invalid preset name, try --list-presets".into())
 }
@@ -348,6 +349,15 @@ fn parse_floats(s: &str) -> Result<Vec<f32>, ParseFloatError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn preset_name_test() {
+        assert_eq!(parse_preset_name("rainbow"), Ok("rainbow".into()));
+        assert_eq!(parse_preset_name("Rainbow"), Ok("rainbow".into()));
+        assert_eq!(parse_preset_name("PLASMA"), Ok("plasma".into()));
+
+        assert!(parse_preset_name("sky").is_err());
+    }
 
     #[test]
     fn parse_floats_test() {
