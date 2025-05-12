@@ -1,3 +1,4 @@
+use std::num::ParseFloatError;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -249,8 +250,14 @@ pub fn parse_args() -> Result<Opt, lexopt::Error> {
                 opt.custom = Some(res?);
             }
             Short('P') | Long("position") => {
-                let res: Result<Vec<_>,_> = parser.values()?.map(|s|s.parse()).collect();
-                opt.position = Some(res?);
+                for s in parser.values()? {
+                    let v = s.parse_with(parse_floats)?;
+                    if let Some(ref mut position) = opt.position {
+                        position.extend(v);
+                    } else {
+                        opt.position = Some(v);
+                    }
+                }
             }
             Short('C') | Long("css") => {
                 if opt.custom.is_some() || opt.preset.is_some() {
@@ -302,8 +309,14 @@ pub fn parse_args() -> Result<Opt, lexopt::Error> {
                 if opt.take.is_some() {
                     return Err("--take cannot be used with --sample".into());
                 }
-                let res: Result<Vec<_>,_> = parser.values()?.map(|s|s.parse()).collect();
-                opt.sample = Some(res?);
+                for s in parser.values()? {
+                    let v = s.parse_with(parse_floats)?;
+                    if let Some(ref mut sample) = opt.sample {
+                        sample.extend(v);
+                    } else {
+                        opt.sample = Some(v);
+                    }
+                }
             }
             Short('o') | Long("format") => {
                 opt.format = Some(parser.value()?.parse()?);
@@ -326,4 +339,27 @@ fn parse_preset_name(s: &str) -> Result<String, String> {
         return Ok(s.to_string());
     }
     Err("invalid preset name, try --list-presets".into())
+}
+
+fn parse_floats(s: &str) -> Result<Vec<f32>, ParseFloatError> {
+    s.split(',').map(|s| s.trim().parse()).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_floats_test() {
+        assert_eq!(parse_floats("90"), Ok(vec![90.0]));
+        assert_eq!(parse_floats("0,0.5,1"), Ok(vec![0.0, 0.5, 1.0]));
+        assert_eq!(
+            parse_floats(" 12.7 , 0.56 ,-0.9"),
+            Ok(vec![12.7, 0.56, -0.9])
+        );
+        assert_eq!(parse_floats("-2.3, 0.73 "), Ok(vec![-2.3, 0.73]));
+
+        assert!(parse_floats("1,0.5,6p,8").is_err());
+        assert!(parse_floats("").is_err());
+    }
 }

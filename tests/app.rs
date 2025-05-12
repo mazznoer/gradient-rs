@@ -79,6 +79,15 @@ fn basic() {
     */
 
     gradient()
+        .arg("--custom")
+        .args(&["red", "lime", "blue"])
+        .arg("--position=-5,5,10")
+        .arg("--sample=-5,10,5")
+        .assert()
+        .success()
+        .stdout("#ff0000\n#0000ff\n#00ff00\n");
+
+    gradient()
         .arg("--file")
         .arg("data/gradients.svg")
         .arg("data/Neon_Green.ggr")
