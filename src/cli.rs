@@ -2,7 +2,7 @@ use std::num::ParseFloatError;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use colorgrad::Color;
+use colorgrad::{Color, ParseColorError};
 
 #[derive(Clone)]
 pub enum BlendMode {
@@ -246,8 +246,14 @@ pub fn parse_args() -> Result<Opt, lexopt::Error> {
                 if opt.preset.is_some() || opt.css.is_some() {
                     return Err("choose one: --preset, --custom, --css".into());
                 }
-                let res: Result<Vec<_>,_> = parser.values()?.map(|s|s.parse()).collect();
-                opt.custom = Some(res?);
+                for s in parser.values()? {
+                    let v = s.parse_with(parse_colors)?;
+                    if let Some(ref mut colors) = opt.custom {
+                        colors.extend(v);
+                    } else {
+                        opt.custom = Some(v);
+                    }
+                }
             }
             Short('P') | Long("position") => {
                 for s in parser.values()? {
@@ -346,6 +352,25 @@ fn parse_floats(s: &str) -> Result<Vec<f32>, ParseFloatError> {
     s.split(',').map(|s| s.trim().parse()).collect()
 }
 
+fn parse_colors(s: &str) -> Result<Vec<Color>, ParseColorError> {
+    let mut colors = Vec::new();
+    let mut start = 0;
+    let mut inside = false;
+
+    for (i, c) in s.chars().enumerate() {
+        if c == ',' && !inside {
+            colors.push(s[start..i].parse()?);
+            start = i + 1;
+        } else if c == '(' {
+            inside = true;
+        } else if c == ')' {
+            inside = false;
+        }
+    }
+    colors.push(s[start..].parse()?);
+    Ok(colors)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -371,5 +396,18 @@ mod tests {
 
         assert!(parse_floats("1,0.5,6p,8").is_err());
         assert!(parse_floats("").is_err());
+    }
+
+    #[test]
+    fn parse_colors_test() {
+        let res = parse_colors("rgb(0,255, 0), #ff0, rgba(100%, 0%, 0%, 100%), blue").unwrap();
+
+        assert_eq!(res.len(), 4);
+        assert_eq!(res[0].to_hex_string(), "#00ff00");
+        assert_eq!(res[1].to_hex_string(), "#ffff00");
+        assert_eq!(res[2].to_hex_string(), "#ff0000");
+        assert_eq!(res[3].to_hex_string(), "#0000ff");
+
+        assert!(parse_colors("red, rgb(90,20,)").is_err());
     }
 }

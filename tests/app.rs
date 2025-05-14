@@ -49,15 +49,12 @@ fn basic() {
         .assert()
         .success();
 
-    /*
     gradient()
         .args(&[
             "--custom",
-            "gold;purple;red",
+            "gold,purple,red",
             "--position",
-            "0",
-            "70",
-            "100",
+            "0,70,100",
             "--blend-mode",
             "lab",
             "--interpolation",
@@ -68,7 +65,7 @@ fn basic() {
 
     gradient()
         .arg("-c")
-        .arg("#46f; #ab7; #abc456")
+        .arg("#46f, #ab7, #abc456")
         .arg("-P")
         .arg("0, 73,100 ")
         .arg("-s")
@@ -76,11 +73,10 @@ fn basic() {
         .assert()
         .success()
         .stdout("#4466ff\n#aabb77\n#abc456\n#abc456\n");
-    */
 
     gradient()
         .arg("--custom")
-        .args(&["red", "lime", "blue"])
+        .arg("red, rgb(0,255,0), #00f")
         .arg("--position=-5,5,10")
         .arg("--sample=-5,10,5")
         .assert()
@@ -177,15 +173,14 @@ fn invalid() {
         .failure();
 
     // invalid position
-    /*
+
     gradient()
         .arg("--custom")
-        .arg("red;lime")
+        .arg("red, lime")
         .arg("--position")
-        .args(&["0", "0.5", "1"])
+        .arg("0, 0.5, 1")
         .assert()
         .failure();
-    */
 
     // invalid SVG gradient
     gradient()
