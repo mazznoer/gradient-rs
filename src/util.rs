@@ -45,7 +45,7 @@ fn format_alpha(a: f32) -> String {
 
 pub fn format_color(col: &Color, format: OutputColor) -> String {
     match format {
-        OutputColor::Hex => col.to_hex_string(),
+        OutputColor::Hex => col.to_css_hex(),
 
         OutputColor::Rgb => {
             format!(

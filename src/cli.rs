@@ -403,10 +403,10 @@ mod tests {
         let res = parse_colors("rgb(0,255, 0), #ff0, rgba(100%, 0%, 0%, 100%), blue").unwrap();
 
         assert_eq!(res.len(), 4);
-        assert_eq!(res[0].to_hex_string(), "#00ff00");
-        assert_eq!(res[1].to_hex_string(), "#ffff00");
-        assert_eq!(res[2].to_hex_string(), "#ff0000");
-        assert_eq!(res[3].to_hex_string(), "#0000ff");
+        assert_eq!(res[0].to_css_hex(), "#00ff00");
+        assert_eq!(res[1].to_css_hex(), "#ffff00");
+        assert_eq!(res[2].to_css_hex(), "#ff0000");
+        assert_eq!(res[3].to_css_hex(), "#0000ff");
 
         assert!(parse_colors("red, rgb(90,20,)").is_err());
     }
