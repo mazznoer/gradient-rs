@@ -32,68 +32,42 @@ pub fn bold(s: &str) -> String {
     format!("\x1B[1m{s}\x1B[0m")
 }
 
-fn format_alpha(a: f32) -> String {
-    if a >= 1.0 {
-        return "".into();
+fn fmt_float(t: f32, precision: usize) -> String {
+    let s = format!("{:.1$}", t, precision);
+    s.trim_end_matches('0').trim_end_matches('.').to_string()
+}
+
+fn fmt_alpha(alpha: f32) -> String {
+    if alpha < 1.0 {
+        format!(" / {}%", (alpha.max(0.0) * 100.0 + 0.5).floor())
+    } else {
+        "".into()
     }
-    let s = format!(",{:.2}%", a * 100.0);
-    if s.starts_with(",100") {
-        return "".into();
-    }
-    s
+}
+
+fn to_hsv_str(col: &Color) -> String {
+    let [h, s, v, alpha] = col.to_hsva();
+    let h = if h.is_nan() {
+        "none".into()
+    } else {
+        fmt_float(h, 2)
+    };
+    let s = (s * 100.0 + 0.5).floor();
+    let v = (v * 100.0 + 0.5).floor();
+    format!("hsv({h} {s}% {v}%{})", fmt_alpha(alpha))
 }
 
 pub fn format_color(col: &Color, format: OutputColor) -> String {
     match format {
         OutputColor::Hex => col.to_css_hex(),
-
-        OutputColor::Rgb => {
-            format!(
-                "rgb({:.2}%,{:.2}%,{:.2}%{})",
-                col.r * 100.0,
-                col.g * 100.0,
-                col.b * 100.0,
-                format_alpha(col.a)
-            )
-        }
-
-        OutputColor::Rgb255 => {
-            let [r, g, b, _] = col.to_rgba8();
-            format!("rgb({r},{g},{b}{})", format_alpha(col.a))
-        }
-
-        OutputColor::Hsl => {
-            let [h, s, l, a] = col.to_hsla();
-            format!(
-                "hsl({:.2},{:.2}%,{:.2}%{})",
-                h,
-                s * 100.0,
-                l * 100.0,
-                format_alpha(a)
-            )
-        }
-
-        OutputColor::Hsv => {
-            let [h, s, v, a] = col.to_hsva();
-            format!(
-                "hsv({:.2},{:.2}%,{:.2}%{})",
-                h,
-                s * 100.0,
-                v * 100.0,
-                format_alpha(a)
-            )
-        }
-
-        OutputColor::Hwb => {
-            let [h, w, b, a] = col.to_hwba();
-            format!(
-                "hwb({:.2},{:.2}%,{:.2}%{})",
-                h,
-                w * 100.0,
-                b * 100.0,
-                format_alpha(a)
-            )
-        }
+        OutputColor::Rgb => col.to_css_rgb(),
+        OutputColor::Hsl => col.to_css_hsl(),
+        OutputColor::Hwb => col.to_css_hwb(),
+        OutputColor::Hsv => to_hsv_str(col),
+        OutputColor::Lab => col.to_css_lab(),
+        OutputColor::Lch => col.to_css_lch(),
+        OutputColor::Oklab => col.to_css_oklab(),
+        OutputColor::Oklch => col.to_css_oklch(),
     }
 }
 
@@ -103,29 +77,16 @@ mod tests {
 
     #[test]
     fn test() {
-        assert_eq!(format_alpha(0.0), ",0.00%");
-        assert_eq!(format_alpha(0.5), ",50.00%");
-        assert_eq!(format_alpha(1.0), "");
-        assert_eq!(format_alpha(1.2), "");
+        assert_eq!(fmt_alpha(0.0), " / 0%");
+        assert_eq!(fmt_alpha(0.5), " / 50%");
+        assert_eq!(fmt_alpha(1.0), "");
+        assert_eq!(fmt_alpha(1.2), "");
 
         let red = Color::new(1.0, 0.0, 0.0, 1.0);
         assert_eq!(format_color(&red, OutputColor::Hex), "#ff0000");
-        assert_eq!(
-            format_color(&red, OutputColor::Rgb),
-            "rgb(100.00%,0.00%,0.00%)"
-        );
-        assert_eq!(format_color(&red, OutputColor::Rgb255), "rgb(255,0,0)");
-        assert_eq!(
-            format_color(&red, OutputColor::Hsl),
-            "hsl(0.00,100.00%,50.00%)"
-        );
-        assert_eq!(
-            format_color(&red, OutputColor::Hsv),
-            "hsv(0.00,100.00%,100.00%)"
-        );
-        assert_eq!(
-            format_color(&red, OutputColor::Hwb),
-            "hwb(0.00,0.00%,0.00%)"
-        );
+        assert_eq!(format_color(&red, OutputColor::Rgb), "rgb(255 0 0)");
+        assert_eq!(format_color(&red, OutputColor::Hsl), "hsl(0 100% 50%)");
+        assert_eq!(format_color(&red, OutputColor::Hsv), "hsv(0 100% 100%)");
+        assert_eq!(format_color(&red, OutputColor::Hwb), "hwb(0 0% 0%)");
     }
 }

@@ -54,10 +54,13 @@ impl FromStr for Interpolation {
 pub enum OutputColor {
     Hex,
     Rgb,
-    Rgb255,
     Hsl,
     Hsv,
     Hwb,
+    Lab,
+    Lch,
+    Oklab,
+    Oklch,
 }
 
 impl FromStr for OutputColor {
@@ -67,12 +70,15 @@ impl FromStr for OutputColor {
         match s.to_lowercase().as_str() {
             "hex" => Ok(Self::Hex),
             "rgb" => Ok(Self::Rgb),
-            "rgb255" => Ok(Self::Rgb255),
             "hsl" => Ok(Self::Hsl),
             "hsv" => Ok(Self::Hsv),
             "hwb" => Ok(Self::Hwb),
+            "lab" => Ok(Self::Lab),
+            "lch" => Ok(Self::Lch),
+            "oklab" => Ok(Self::Oklab),
+            "oklch" => Ok(Self::Oklch),
             _ => Err(format!(
-                "Invalid --format '{s}' [pick from: hex, rgb, rgb255, hsl, hsv, hwb]"
+                "Invalid --format '{s}' [pick from: hex, rgb, hsl, hsv, hwb, lab, lch, oklab, oklch]"
             )),
         }
     }
@@ -129,13 +135,14 @@ A command line tool for playing with color gradients
 Usage: gradient [OPTIONS]
 
 Options:
-  -W, --width <NUM>               Gradient display width [default: terminal width]
-  -H, --height <NUM>              Gradient display height [default: 2]
-  -b, --background <COLOR>        Background color [default: checkerboard]
+  -W, --width <NUM>               Gradient display width
+  -H, --height <NUM>              Gradient display height
+  -b, --background <COLOR>        Background color
       --cb-color <COLOR> <COLOR>  Checkerboard color
   -t, --take <NUM>                Get N colors evenly spaced across gradient
   -s, --sample <FLOAT>...         Get color(s) at specific position
-  -o, --format <FORMAT>           Output color format [possible values: hex, rgb, rgb255, hsl, hsv, hwb]
+  -o, --format <FORMAT>           Output color format. [default: hex]
+                                  [hex, rgb, hsl, hsv, hwb, lab, lch, oklab, oklch]
   -a, --array                     Print colors from --take or --sample, as array
       --named-colors              Lists all CSS named colors
   -h, --help                      Print help (see more with '--help')
@@ -149,10 +156,10 @@ CUSTOM GRADIENT:
   -c, --custom <COLOR>...         Create custom gradient with the specified colors
   -P, --position <FLOAT>...       Custom gradient color position
   -C, --css <CSS-GRADIENT>        Custom gradient using CSS gradient format
-  -m, --blend-mode <COLOR-SPACE>  Custom gradient blending mode [default: oklab] [possible values: rgb,
-                                  linear-rgb, oklab, lab]
-  -i, --interpolation <MODE>      Custom gradient interpolation mode [default: catmull-rom] [possible values:
-                                  linear, basis, catmull-rom]
+  -m, --blend-mode <COLOR-SPACE>  Custom gradient blending mode
+                                  [values: rgb, linear-rgb, oklab, lab]
+  -i, --interpolation <MODE>      Custom gradient interpolation mode
+                                  [values: linear, basis, catmull-rom]
 
 GRADIENT FILE:
       --ggr-bg <COLOR>  GGR background color [default: white]
