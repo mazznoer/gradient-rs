@@ -33,7 +33,7 @@ pub fn bold(s: &str) -> String {
 }
 
 fn fmt_float(t: f32, precision: usize) -> String {
-    let s = format!("{:.1$}", t, precision);
+    let s = format!("{t:.precision$}");
     s.trim_end_matches('0').trim_end_matches('.').to_string()
 }
 

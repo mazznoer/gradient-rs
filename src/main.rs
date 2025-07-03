@@ -438,7 +438,7 @@ impl GradientApp<'_> {
                 };
 
                 if w + nwc > self.term_width || i == last {
-                    writeln!(self.stdout, "{}\n{}", buff0, buff1)?;
+                    writeln!(self.stdout, "{buff0}\n{buff1}")?;
                     buff0.clear();
                     buff1.clear();
                     w = 0;

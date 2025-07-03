@@ -364,7 +364,7 @@ fn parse_colors(s: &str) -> Result<Vec<Color>, ParseColorError> {
     let mut start = 0;
     let mut inside = false;
 
-    for (i, c) in s.chars().enumerate() {
+    for (i, c) in s.char_indices() {
         if c == ',' && !inside {
             colors.push(s[start..i].parse()?);
             start = i + 1;
