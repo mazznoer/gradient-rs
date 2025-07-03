@@ -22,7 +22,7 @@ enum OutputMode {
 
 struct GradientApp<'a> {
     opt: Opt,
-    stdout: io::StdoutLock<'a>,
+    stdout: io::BufWriter<io::StdoutLock<'a>>,
     is_terminal: bool,
     output_mode: OutputMode,
     output_format: OutputColor,
@@ -76,7 +76,7 @@ impl GradientApp<'_> {
 
         Self {
             output_mode,
-            stdout: stdout.lock(),
+            stdout: io::BufWriter::new(stdout.lock()),
             is_terminal,
             use_solid_bg: opt.background.is_some(),
             background,
@@ -90,47 +90,40 @@ impl GradientApp<'_> {
     }
 
     fn run(&mut self) -> io::Result<i32> {
-        if self.opt.list_presets {
+        let result = if self.opt.list_presets {
+            // List all preset gradients
             self.width = self.term_width.min(80);
             self.height = 2;
-
             for name in PRESET_NAMES {
                 writeln!(self.stdout, "{name}")?;
                 self.opt.preset = Some(name.into());
                 self.preset_gradient()?;
             }
-
-            return Ok(0);
-        }
-
-        if self.opt.named_colors {
+            Ok(0)
+        } else if self.opt.named_colors {
+            // List all CSS named colors
             let mut colors: Vec<_> = csscolorparser::NAMED_COLORS.entries().collect();
             colors.sort_by(|a, b| a.0.cmp(b.0));
-
             for (&name, &[r, g, b]) in &colors {
                 writeln!(
                     self.stdout,
                     "\x1B[48;2;{r};{g};{b}m   \x1B[49;38;2;{r};{g};{b}m #{r:02x}{g:02x}{b:02x}\x1B[39m {name}"
                 )?;
             }
+            Ok(0)
+        } else if self.opt.preset.is_some() {
+            self.preset_gradient()
+        } else if self.opt.custom.is_some() || self.opt.css.is_some() {
+            self.custom_gradient()
+        } else if self.opt.file.is_some() {
+            self.file_gradient()
+        } else {
+            self.example_help()?;
+            Ok(1)
+        };
 
-            return Ok(0);
-        }
-
-        if self.opt.preset.is_some() {
-            return self.preset_gradient();
-        }
-
-        if self.opt.custom.is_some() || self.opt.css.is_some() {
-            return self.custom_gradient();
-        }
-
-        if self.opt.file.is_some() {
-            return self.file_gradient();
-        }
-
-        self.example_help()?;
-        Ok(1)
+        self.stdout.flush()?;
+        result
     }
 
     fn preset_gradient(&mut self) -> io::Result<i32> {
@@ -375,7 +368,6 @@ impl GradientApp<'_> {
 
     fn display_gradient(&mut self, grad: &dyn Gradient) -> io::Result<i32> {
         let colors = grad.colors(self.width * 2);
-        let mut out = io::BufWriter::new(&mut self.stdout);
 
         for y in 0..self.height {
             for (x, cols) in colors.chunks_exact(2).enumerate() {
@@ -390,24 +382,23 @@ impl GradientApp<'_> {
                 let [a, b, c, _] = util::blend_color(&cols[0], bg_color).to_rgba8();
                 let [d, e, f, _] = util::blend_color(&cols[1], bg_color).to_rgba8();
 
-                write!(out, "\x1B[38;2;{a};{b};{c};48;2;{d};{e};{f}m\u{258C}",)?;
+                write!(
+                    self.stdout,
+                    "\x1B[38;2;{a};{b};{c};48;2;{d};{e};{f}m\u{258C}",
+                )?;
             }
 
-            writeln!(out, "\x1B[39;49m")?;
+            writeln!(self.stdout, "\x1B[39;49m")?;
         }
 
-        out.flush()?;
         Ok(0)
     }
 
     fn display_colors(&mut self, colors: &[Color]) -> io::Result<i32> {
-        let mut out = io::BufWriter::new(&mut self.stdout);
-
         if self.opt.array {
             let f = self.output_format;
             let cols: Vec<_> = colors.iter().map(|c| util::format_color(c, f)).collect();
-            writeln!(out, "{cols:?}")?;
-            out.flush()?;
+            writeln!(self.stdout, "{cols:?}")?;
             return Ok(0);
         }
 
@@ -415,13 +406,12 @@ impl GradientApp<'_> {
             if self.output_format != OutputColor::Hex {
                 for col in colors {
                     writeln!(
-                        out,
+                        self.stdout,
                         "{} {}",
                         util::color_to_ansi(col, &self.cb_color, 7),
                         util::format_color(col, self.output_format)
                     )?;
                 }
-                out.flush()?;
                 return Ok(0);
             }
 
@@ -448,20 +438,23 @@ impl GradientApp<'_> {
                 };
 
                 if w + nwc > self.term_width || i == last {
-                    writeln!(out, "{}\n{}", buff0, buff1)?;
+                    writeln!(self.stdout, "{}\n{}", buff0, buff1)?;
                     buff0.clear();
                     buff1.clear();
                     w = 0;
                 }
             }
-            out.flush()?;
             return Ok(0);
         }
 
         for col in colors {
-            writeln!(out, "{}", util::format_color(col, self.output_format))?;
+            writeln!(
+                self.stdout,
+                "{}",
+                util::format_color(col, self.output_format)
+            )?;
         }
-        out.flush()?;
+
         Ok(0)
     }
 
