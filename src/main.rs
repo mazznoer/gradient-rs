@@ -4,6 +4,7 @@ use std::io::{self, BufReader, IsTerminal, Read, Write};
 use std::process::exit;
 
 use colorgrad::{Color, GimpGradient, Gradient};
+use csscolorparser::NAMED_COLORS;
 
 mod cli;
 use cli::{BlendMode, Interpolation, Opt, OutputColor, PRESET_NAMES};
@@ -102,9 +103,7 @@ impl GradientApp<'_> {
             Ok(0)
         } else if self.opt.named_colors {
             // List all CSS named colors
-            let mut colors: Vec<_> = csscolorparser::NAMED_COLORS.entries().collect();
-            colors.sort_by(|a, b| a.0.cmp(b.0));
-            for (&name, &[r, g, b]) in &colors {
+            for (&name, &[r, g, b]) in NAMED_COLORS.entries() {
                 writeln!(
                     self.stdout,
                     "\x1B[48;2;{r};{g};{b}m   \x1B[49;38;2;{r};{g};{b}m #{r:02x}{g:02x}{b:02x}\x1B[39m {name}"
