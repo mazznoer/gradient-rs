@@ -21,8 +21,8 @@ lto = true
 strip = true
 
 [dependencies]
-colorgrad = { version = "0.7", features = ["lab", "ggr"] }
-csscolorparser = { version = "0.7" }
+colorgrad = { version = "0.8", features = ["preset", "named-colors", "lab", "ggr"] }
+csscolorparser = { version = "0.8" }
 lexopt = { version = "0.3" }
 svg = { version = "0.18" }
 terminal_size = { version = "0.4" }
