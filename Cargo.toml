@@ -2,7 +2,7 @@
 name = "gradient"
 version = "0.4.1"
 authors = ["Nor Khasyatillah <mazznoer@ymail.com>"]
-edition = "2018"
+edition = "2024"
 description = "A command line tool for playing with color gradients"
 keywords = ["color", "gradient", "colormap", "color-scheme", "gimp"]
 categories = ["command-line-utilities", "graphics"]
