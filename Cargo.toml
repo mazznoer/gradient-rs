@@ -1,6 +1,6 @@
 [package]
 name = "gradient"
-version = "0.4.1"
+version = "0.5.0"
 authors = ["Nor Khasyatillah <mazznoer@ymail.com>"]
 edition = "2024"
 description = "A command line tool for playing with color gradients"
