@@ -45,13 +45,13 @@ impl GradientApp<'_> {
         };
 
         let background = if let Some(ref c) = opt.background {
-            c.clone()
+            *c
         } else {
             Color::new(0.0, 0.0, 0.0, 1.0)
         };
 
         let cb_color = if let Some(ref c) = opt.cb_color {
-            c.clone()
+            *c
         } else {
             [
                 Color::new(0.05, 0.05, 0.05, 1.0),
@@ -213,13 +213,13 @@ impl GradientApp<'_> {
         use colorgrad::{BasisGradient, CatmullRomGradient, LinearGradient};
 
         let ggr_bg_color = if let Some(ref c) = self.opt.ggr_bg {
-            c.clone()
+            *c
         } else {
             Color::new(1.0, 1.0, 1.0, 1.0)
         };
 
         let ggr_fg_color = if let Some(ref c) = self.opt.ggr_fg {
-            c.clone()
+            *c
         } else {
             Color::new(0.0, 0.0, 0.0, 1.0)
         };
@@ -229,13 +229,13 @@ impl GradientApp<'_> {
 
         for path in self.opt.file.as_ref().unwrap().clone() {
             if !path.exists() {
-                eprintln!("{}: file not found.", &path.display());
+                eprintln!("{}: file not found.", path.display());
                 status = 1;
                 continue;
             }
 
             let Some(ext) = path.extension().and_then(OsStr::to_str) else {
-                eprintln!("{}: file format not supported.", &path.display());
+                eprintln!("{}: file format not supported.", path.display());
                 status = 1;
                 continue;
             };
@@ -250,12 +250,12 @@ impl GradientApp<'_> {
                 ) {
                     Ok(grad) => {
                         if show_info {
-                            writeln!(self.stdout, "{} {}", &path.display(), bold(grad.name()))?;
+                            writeln!(self.stdout, "{} {}", path.display(), bold(grad.name()))?;
                         }
                         self.handle_output(&grad)?;
                     }
                     Err(_) => {
-                        eprintln!("{} (invalid GIMP gradient)", &path.display());
+                        eprintln!("{} (invalid GIMP gradient)", path.display());
                         status = 1;
                         continue;
                     }
@@ -285,14 +285,14 @@ impl GradientApp<'_> {
                         .unwrap_or("[without id]".into());
 
                     let Some(mut gb) = sg.gradient_builder() else {
-                        eprintln!("{} {} (invalid gradient)", &path.display(), bold(&id));
+                        eprintln!("{} {} (invalid gradient)", path.display(), bold(&id));
                         status = 1;
                         invalid += 1;
                         continue;
                     };
 
                     if show_info {
-                        writeln!(self.stdout, "{} {}", &path.display(), bold(&id))?;
+                        writeln!(self.stdout, "{} {}", path.display(), bold(&id))?;
                     }
 
                     gb.mode(cmode);
@@ -316,14 +316,14 @@ impl GradientApp<'_> {
 
                 if valid == 0 && invalid == 0 {
                     if self.opt.svg_id.is_some() {
-                        eprintln!("{} -- (nothing matched)", &path.display(),);
+                        eprintln!("{} -- (nothing matched)", path.display(),);
                     } else {
-                        eprintln!("{} -- (no gradients found)", &path.display());
+                        eprintln!("{} -- (no gradients found)", path.display());
                     }
                     status = 1;
                 }
             } else {
-                eprintln!("{}: file format not supported.", &path.display());
+                eprintln!("{}: file format not supported.", path.display());
                 status = 1;
             }
         }
@@ -336,10 +336,10 @@ impl GradientApp<'_> {
             OutputMode::Gradient => self.display_gradient(grad),
 
             OutputMode::ColorsN => {
-                let mut colors = grad.colors(self.opt.take.unwrap());
+                let mut colors: Vec<_> = grad.colors(self.opt.take.unwrap()).collect();
                 if self.use_solid_bg {
                     for col in &mut colors {
-                        util::blend_on(col, &self.background);
+                        util::blend_on(&mut *col, &self.background);
                     }
                 }
                 self.display_colors(&colors)
@@ -366,10 +366,10 @@ impl GradientApp<'_> {
     }
 
     fn display_gradient(&mut self, grad: &dyn Gradient) -> io::Result<i32> {
-        let colors = grad.colors(self.width * 2);
+        let colors: Vec<_> = grad.colors(self.width * 2).collect();
 
         for y in 0..self.height {
-            for (x, cols) in colors.chunks_exact(2).enumerate() {
+            for (x, cols) in colors.as_chunks::<2>().0.iter().enumerate() {
                 let bg_color = if self.use_solid_bg {
                     &self.background
                 } else if ((x / 2) & 1) ^ (y & 1) == 0 {

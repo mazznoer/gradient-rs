@@ -59,15 +59,15 @@ fn to_hsv_str(col: &Color) -> String {
 
 pub fn format_color(col: &Color, format: OutputColor) -> String {
     match format {
-        OutputColor::Hex => col.to_css_hex(),
-        OutputColor::Rgb => col.to_css_rgb(),
-        OutputColor::Hsl => col.to_css_hsl(),
-        OutputColor::Hwb => col.to_css_hwb(),
-        OutputColor::Hsv => to_hsv_str(col),
-        OutputColor::Lab => col.to_css_lab(),
-        OutputColor::Lch => col.to_css_lch(),
-        OutputColor::Oklab => col.to_css_oklab(),
-        OutputColor::Oklch => col.to_css_oklch(),
+        OutputColor::Hex => col.to_css_hex().to_string(),
+        OutputColor::Rgb => col.to_css_rgb().to_string(),
+        OutputColor::Hsl => col.to_css_hsl().to_string(),
+        OutputColor::Hwb => col.to_css_hwb().to_string(),
+        OutputColor::Hsv => to_hsv_str(col).to_string(),
+        OutputColor::Lab => col.to_css_lab().to_string(),
+        OutputColor::Lch => col.to_css_lch().to_string(),
+        OutputColor::Oklab => col.to_css_oklab().to_string(),
+        OutputColor::Oklch => col.to_css_oklch().to_string(),
     }
 }
 

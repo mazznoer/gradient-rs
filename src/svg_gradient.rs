@@ -47,12 +47,12 @@ impl SvgGradient {
         }
         if self.pos[0] > 0.0 {
             self.pos.insert(0, 0.0);
-            self.colors.insert(0, self.colors[0].clone());
+            self.colors.insert(0, self.colors[0]);
         }
         let last = self.colors.len() - 1;
         if self.pos[last] < 1.0 {
             self.pos.push(1.0);
-            self.colors.push(self.colors[last].clone());
+            self.colors.push(self.colors[last]);
         }
         let mut gb = GradientBuilder::new();
         gb.colors(&self.colors);
@@ -186,13 +186,13 @@ mod tests {
     use super::*;
 
     fn colors2hex(colors: &[Color]) -> Vec<String> {
-        colors.iter().map(|c| c.to_css_hex()).collect()
+        colors.iter().map(|c| c.to_string()).collect()
     }
 
     fn str_colors2hex(colors: &[&str]) -> Vec<String> {
         colors
             .iter()
-            .map(|s| s.parse::<Color>().unwrap().to_css_hex())
+            .map(|s| s.parse::<Color>().unwrap().to_string())
             .collect()
     }
 
@@ -284,7 +284,7 @@ mod tests {
 
         fn set_alpha(col: &str, alpha: f32) -> String {
             let c = col.parse::<Color>().unwrap();
-            Color::new(c.r, c.g, c.b, alpha).to_css_hex()
+            Color::new(c.r, c.g, c.b, alpha).to_string()
         }
 
         // Using style attribute

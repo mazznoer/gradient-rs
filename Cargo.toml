@@ -21,11 +21,11 @@ lto = true
 strip = true
 
 [dependencies]
-colorgrad = { version = "0.8", features = ["preset", "named-colors", "lab", "ggr"] }
-csscolorparser = { version = "0.8" }
+colorgrad = { version = "0.9", features = ["preset", "named-colors", "ggr"] }
+csscolorparser = { version = "0.9" }
 lexopt = { version = "0.3" }
 svg = { version = "0.18" }
 terminal_size = { version = "0.4" }
 
 [dev-dependencies]
-assert_cmd = { version = "2.0" }
+assert_cmd = { version = "2.2" }
